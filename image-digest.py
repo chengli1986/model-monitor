@@ -422,10 +422,9 @@ def main():
 
     # Target date: today in BJT (when run at midnight, this covers the day that just ended)
     now_bjt = datetime.now(BJT)
-    # If run at exactly midnight, we want "today" (the date that just started).
-    # But actually we want the day that just ended. At 00:00 Feb 22, we want Feb 21's images.
-    # Use yesterday if current hour is 0 (just past midnight), otherwise today.
-    if now_bjt.hour == 0:
+    # Cron fires at 00:00 BJT — we want the day that just ended (yesterday).
+    # Use hour < 2 to guard against cron slippage past exact midnight.
+    if now_bjt.hour < 2:
         target = (now_bjt - timedelta(days=1)).strftime("%Y-%m-%d")
     else:
         # Manual run during the day — use today
