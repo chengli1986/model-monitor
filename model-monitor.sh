@@ -527,6 +527,105 @@ for d_str, d_models in media_daily.items():
         dp["_media_api"]["msgs"] += day_media_calls
 
 # ============================================================
+# 3d. Web Search (Brave API) 用量统计
+# ============================================================
+BRAVE_COST_PER_QUERY = 0.005  # $5 per 1000 queries
+
+web_search_today = 0
+web_search_yesterday = 0
+web_search_alltime = 0
+web_search_today_queries = []   # list of query strings for display
+web_search_today_ms = 0         # total response time today
+web_search_errors_today = 0
+
+ws_seen_ids = set()
+for fpath in all_files:
+    try:
+        with open(fpath) as f:
+            for line in f:
+                try:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    obj = json.loads(line)
+                    if obj.get("type") != "message":
+                        continue
+                    msg = obj.get("message", {})
+                    if msg.get("role") != "toolResult" or msg.get("toolName") != "web_search":
+                        continue
+                    msg_id = obj.get("id", "")
+                    if msg_id and msg_id in ws_seen_ids:
+                        continue
+                    if msg_id:
+                        ws_seen_ids.add(msg_id)
+
+                    # Parse timestamp
+                    ts_str = obj.get("timestamp", "")
+                    date_str = None
+                    if ts_str:
+                        try:
+                            ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00")).astimezone(BJT)
+                            date_str = ts_dt.strftime("%Y-%m-%d")
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Check if error
+                    details = msg.get("details", {})
+                    is_error = bool(details.get("error"))
+
+                    # Parse result content for query and tookMs
+                    query_str = ""
+                    took_ms = 0
+                    content = msg.get("content", [])
+                    if content and isinstance(content, list):
+                        for c in content:
+                            if c.get("type") == "text":
+                                try:
+                                    result_data = json.loads(c["text"])
+                                    query_str = result_data.get("query", "")
+                                    took_ms = result_data.get("tookMs", 0)
+                                except (json.JSONDecodeError, KeyError):
+                                    pass
+
+                    if not is_error:
+                        web_search_alltime += 1
+                        if date_str == today_str:
+                            web_search_today += 1
+                            web_search_today_ms += took_ms
+                            if query_str:
+                                web_search_today_queries.append(query_str)
+                            # Inject cost into daily_by_provider
+                            if today_str not in daily_by_provider:
+                                daily_by_provider[today_str] = {}
+                            dp = daily_by_provider[today_str]
+                            if "_web_search" not in dp:
+                                dp["_web_search"] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0, "msgs": 0}
+                            dp["_web_search"]["cost"] += BRAVE_COST_PER_QUERY
+                            dp["_web_search"]["msgs"] += 1
+                        elif date_str == yesterday_str:
+                            web_search_yesterday += 1
+                        # Inject into daily_by_provider for all dates
+                        if date_str and date_str != today_str:
+                            if date_str not in daily_by_provider:
+                                daily_by_provider[date_str] = {}
+                            dp = daily_by_provider[date_str]
+                            if "_web_search" not in dp:
+                                dp["_web_search"] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0, "msgs": 0}
+                            dp["_web_search"]["cost"] += BRAVE_COST_PER_QUERY
+                            dp["_web_search"]["msgs"] += 1
+                    else:
+                        if date_str == today_str:
+                            web_search_errors_today += 1
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    continue
+    except IOError:
+        continue
+
+web_search_today_cost = web_search_today * BRAVE_COST_PER_QUERY
+web_search_alltime_cost = web_search_alltime * BRAVE_COST_PER_QUERY
+web_search_avg_ms = web_search_today_ms // web_search_today if web_search_today > 0 else 0
+
+# ============================================================
 # 3b. 计算近 7 天 / 30 天 及环比
 # ============================================================
 def range_sum(daily, start_date, days):
@@ -833,6 +932,50 @@ pricing_rows_rmb = build_pricing_rows(True)
 now_bj = now_bjt.strftime("%Y年%m月%d日 %H:%M")
 media_table_scope = "— 今日" if media_rows_today else "— 历史累计"
 
+# --- 预计算 Web Search 区块 (避免 f-string 嵌套) ---
+def build_web_search_section():
+    if web_search_alltime == 0 and web_search_today == 0:
+        return ""
+    queries_html = ""
+    if web_search_today_queries:
+        items = ""
+        for q in web_search_today_queries[-10:]:  # show last 10
+            import html as _html
+            items += f'<div style="padding:3px 0;font-size:12px;color:#555;">🔍 {_html.escape(q)}</div>'
+        queries_html = f'<div style="margin-top:12px;padding:10px;background:#f8f9fa;border-radius:6px;">{items}</div>'
+    error_note = f' · <span style="color:#e74c3c;">{web_search_errors_today} 失败</span>' if web_search_errors_today > 0 else ""
+    avg_note = f" · 平均 {web_search_avg_ms}ms" if web_search_avg_ms > 0 else ""
+    return f"""
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      🔎 Web Search (Brave API)
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;background:white;border-radius:12px;padding:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #fb542b;">
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">今日搜索</div>
+        <div style="font-size:22px;font-weight:700;color:#333;">{web_search_today} <span style="font-size:14px;color:#999;">次</span></div>
+        <div style="font-size:12px;color:#666;margin-top:6px;">${web_search_today_cost:.3f}{avg_note}{error_note}</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:white;border-radius:12px;padding:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #fb542b;">
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">昨日搜索</div>
+        <div style="font-size:22px;font-weight:700;color:#333;">{web_search_yesterday} <span style="font-size:14px;color:#999;">次</span></div>
+        <div style="font-size:12px;color:#666;margin-top:6px;">${web_search_yesterday * BRAVE_COST_PER_QUERY:.3f}</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:white;border-radius:12px;padding:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #fb542b;">
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">累计搜索</div>
+        <div style="font-size:22px;font-weight:700;color:#333;">{web_search_alltime} <span style="font-size:14px;color:#999;">次</span></div>
+        <div style="font-size:12px;color:#666;margin-top:6px;">${web_search_alltime_cost:.3f}</div>
+      </div>
+    </div>
+    {queries_html}
+  </div>"""
+
+web_search_section = build_web_search_section()
+
 # --- 预计算定价参考区块 (避免 f-string 嵌套) ---
 pricing_th = 'style="padding:8px 12px;text-align:left;font-size:12px;color:#666;"'
 pricing_th_r = 'style="padding:8px 12px;text-align:right;font-size:12px;color:#666;"'
@@ -1003,6 +1146,8 @@ html = f"""<!DOCTYPE html>
     '''}
   </div>
   """}
+
+  {web_search_section}
 
   <!-- 用量趋势：昨日 / 同比 / 7天 / 30天 / 环比 -->
   <div style="padding:0 30px 25px;">
