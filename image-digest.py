@@ -117,12 +117,13 @@ def fmt_size(b):
 
 
 def collect_media_log_images(target_date_str):
-    """Cross-check: count image entries in media-usage.jsonl for the same BJT date.
+    """Cross-check: collect image entries in media-usage.jsonl for the same BJT date.
 
-    Returns dict with counts from model-monitor's data source, so we can
-    compare against gateway delivery logs.
+    Returns dict with counts and a list of generation timestamps for matching
+    against gateway delivery logs.
     """
-    result = {"script": 0, "builtin": 0, "script_cost": 0.0, "builtin_cost": 0.0}
+    result = {"script": 0, "builtin": 0, "script_cost": 0.0, "builtin_cost": 0.0,
+              "entries": []}  # list of {"ts_bjt": datetime, "service": str, "cost": float}
     seen = set()
     if not os.path.isfile(MEDIA_LOG):
         return result
@@ -160,9 +161,42 @@ def collect_media_log_images(target_date_str):
                 else:
                     result["builtin"] += 1
                     result["builtin_cost"] += cost
+                result["entries"].append({"ts_bjt": dt, "service": service, "cost": cost})
     except IOError:
         pass
     return result
+
+
+def classify_deliveries(image_entries, media_log_data):
+    """Match gateway deliveries to media-usage.jsonl generation records.
+
+    Returns (new_count, resend_count, resend_list) where resend_list
+    contains filenames of re-delivered old images.
+    """
+    gen_times = [e["ts_bjt"] for e in media_log_data["entries"]]
+    used = set()  # indices into gen_times already matched
+    new_entries = []
+    resend_entries = []
+
+    for delivery in image_entries:
+        d_ts = delivery["ts"]
+        # Find closest generation record within 30 seconds
+        best_idx = None
+        best_delta = float("inf")
+        for i, g_ts in enumerate(gen_times):
+            if i in used:
+                continue
+            delta = abs((d_ts - g_ts).total_seconds())
+            if delta < 30 and delta < best_delta:
+                best_delta = delta
+                best_idx = i
+        if best_idx is not None:
+            used.add(best_idx)
+            new_entries.append(delivery)
+        else:
+            resend_entries.append(delivery)
+
+    return new_entries, resend_entries
 
 
 def build_email(target_date_str, image_entries, media_log_data):
@@ -194,41 +228,56 @@ def build_email(target_date_str, image_entries, media_log_data):
           <div style="font-size:10px;color:#999;">{ts_str} &middot; {fmt_size(entry['bytes'])}</div>
         </div>"""
 
-    # --- Cross-check section ---
+    # --- Cross-check: classify deliveries as new vs re-send ---
+    new_entries, resend_entries = classify_deliveries(valid, media_log_data)
     ml_total = media_log_data["script"] + media_log_data["builtin"]
     ml_cost = media_log_data["script_cost"] + media_log_data["builtin_cost"]
     delivered = len(image_entries)  # total from gateway logs (before disk filter)
     on_disk = len(valid)
+    new_count = len(new_entries)
+    resend_count = len(resend_entries)
 
-    matched = ml_total == delivered
-    status_color = "#4caf50" if matched else "#e74c3c"
-    status_icon = "&#10003;" if matched else "&#10007;"
-    status_text = "一致" if matched else "不一致"
+    # Untracked = generated via media-usage but no matching delivery (API error / not sent)
+    untracked = ml_total - new_count
+    all_accounted = (resend_count == 0 and untracked == 0)
+    status_color = "#4caf50" if all_accounted else "#ff9800"
+    status_icon = "&#10003;" if all_accounted else "&#9888;"
+    status_text = "完全一致" if all_accounted else "已分类"
+
+    td_row = 'style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;"'
+    td_num = 'style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;"'
 
     crosscheck_rows = f"""
       <tr>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">生成记录 (media-usage.jsonl)</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{ml_total}</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${ml_cost:.4f}</td>
-      </tr>
+        <td {td_row}>🆕 今日新生成</td>
+        <td {td_num}>{new_count}</td>
+        <td {td_num}>${ml_cost:.4f}</td>
+      </tr>"""
+    if media_log_data["script"] > 0:
+        crosscheck_rows += f"""
       <tr>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">&nbsp;&nbsp;└ 脚本生成</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{media_log_data["script"]}</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${media_log_data["script_cost"]:.4f}</td>
-      </tr>
+        <td {td_row}>&nbsp;&nbsp;└ 脚本生成</td>
+        <td {td_num}>{media_log_data["script"]}</td>
+        <td {td_num}>${media_log_data["script_cost"]:.4f}</td>
+      </tr>"""
+    if media_log_data["builtin"] > 0:
+        crosscheck_rows += f"""
       <tr>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">&nbsp;&nbsp;└ 内置工具</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{media_log_data["builtin"]}</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${media_log_data["builtin_cost"]:.4f}</td>
-      </tr>
+        <td {td_row}>&nbsp;&nbsp;└ 内置工具</td>
+        <td {td_num}>{media_log_data["builtin"]}</td>
+        <td {td_num}>${media_log_data["builtin_cost"]:.4f}</td>
+      </tr>"""
+    if resend_count > 0:
+        crosscheck_rows += f"""
       <tr>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">投递记录 (gateway logs)</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{delivered}</td>
-        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">—</td>
-      </tr>
+        <td {td_row}>🔄 重发旧图</td>
+        <td {td_num}>{resend_count}</td>
+        <td {td_num}>$0 (免费)</td>
+      </tr>"""
+    crosscheck_rows += f"""
       <tr>
-        <td style="padding:6px 12px;font-size:12px;">磁盘文件 (仍存在)</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;">{on_disk}</td>
+        <td style="padding:6px 12px;font-size:12px;">📬 投递总计</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;">{on_disk}</td>
         <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;">—</td>
       </tr>"""
 
@@ -241,7 +290,7 @@ def build_email(target_date_str, image_entries, media_log_data):
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="background:#f0f2f5;">
-            <th style="padding:6px 12px;text-align:left;font-size:11px;color:#999;">数据源</th>
+            <th style="padding:6px 12px;text-align:left;font-size:11px;color:#999;">分类</th>
             <th style="padding:6px 12px;text-align:right;font-size:11px;color:#999;">数量</th>
             <th style="padding:6px 12px;text-align:right;font-size:11px;color:#999;">费用</th>
           </tr>
@@ -249,15 +298,19 @@ def build_email(target_date_str, image_entries, media_log_data):
         <tbody>{crosscheck_rows}</tbody>
       </table>"""
 
-    if not matched:
-        diff = abs(ml_total - delivered)
-        if ml_total > delivered:
-            hint = f"media-usage.jsonl 多 {diff} 条 — 可能有图片生成但未投递（API 错误或用户取消）"
-        else:
-            hint = f"gateway 投递多 {diff} 条 — 可能有重发旧图片，或 media-usage.jsonl 漏记"
+    # Show re-sent file names
+    if resend_entries:
+        resend_names = ", ".join(os.path.basename(e["url"]) for e in resend_entries)
+        crosscheck_html += f"""
+      <div style="margin-top:8px;padding:8px 12px;background:#e3f2fd;border-radius:6px;font-size:11px;color:#1565c0;">
+        🔄 重发: {resend_names}
+      </div>"""
+
+    # Show untracked (generated but not delivered)
+    if untracked > 0:
         crosscheck_html += f"""
       <div style="margin-top:8px;padding:8px 12px;background:#fff3e0;border-radius:6px;font-size:11px;color:#e65100;">
-        ⚠️ {hint}
+        ⚠️ {untracked} 张图片已生成但未投递（可能 API 错误或用户取消）
       </div>"""
 
     crosscheck_html += "</div>"
@@ -277,17 +330,21 @@ def build_email(target_date_str, image_entries, media_log_data):
   </div>
 
   <div style="padding:20px 24px;">
-    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
-      <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:#333;">{on_disk}</div>
-        <div style="font-size:12px;color:#999;">张图片</div>
+    <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
+      <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#333;">{new_count}</div>
+        <div style="font-size:12px;color:#999;">新生成</div>
       </div>
-      <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
+      <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:{('#666' if resend_count > 0 else '#ccc')};">{resend_count}</div>
+        <div style="font-size:12px;color:#999;">重发</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
         <div style="font-size:28px;font-weight:700;color:#333;">{fmt_size(total_bytes)}</div>
         <div style="font-size:12px;color:#999;">总大小</div>
       </div>
-      <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:#333;">${ml_cost:.4f}</div>
+      <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#e74c3c;">${ml_cost:.4f}</div>
         <div style="font-size:12px;color:#999;">费用</div>
       </div>
     </div>
@@ -366,9 +423,11 @@ def main():
     # Cross-check against media-usage.jsonl
     media_log_data = collect_media_log_images(target)
     ml_total = media_log_data["script"] + media_log_data["builtin"]
-    print(f"media-usage.jsonl: {ml_total} entries (script={media_log_data['script']}, builtin={media_log_data['builtin']})")
-    if ml_total != len(entries):
-        print(f"  ⚠ MISMATCH: gateway={len(entries)} vs media-log={ml_total}")
+    new_list, resend_list = classify_deliveries(entries, media_log_data)
+    print(f"media-usage.jsonl: {ml_total} generated (script={media_log_data['script']}, builtin={media_log_data['builtin']})")
+    print(f"Classification: {len(new_list)} new + {len(resend_list)} re-sent = {len(entries)} total")
+    if resend_list:
+        print(f"  Re-sent: {', '.join(os.path.basename(e['url']) for e in resend_list)}")
 
     if not entries:
         log(f"No images found for {target}")
