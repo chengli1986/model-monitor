@@ -804,26 +804,60 @@ for key in sorted(media_alltime.keys(), key=lambda k: -media_alltime[k]["cost"])
       <td {td_mono_cost}>{fmt_cost(d["cost"], "$")}</td>
     </tr>"""
 
-# --- 定价参考 ---
-pricing_rows = ""
-for mid, p in sorted(pricing.items(), key=lambda x: x[1].get("provider", "")):
-    prov = p.get("provider", "")
-    sym = "¥" if prov in RMB_PROVIDERS else "$"
-    # 配置中是 /1K tokens，乘 1000 转换为 /1M tokens
-    m_in = p["input"] * 1000
-    m_out = p["output"] * 1000
-    m_cache = p["cache_read"] * 1000
-    pricing_rows += f"""
+# --- 定价参考 (按币种分组，输出价格降序) ---
+def build_pricing_rows(currency_filter):
+    rows = ""
+    items = [(mid, p) for mid, p in pricing.items()
+             if is_rmb(p.get("provider", "")) == currency_filter]
+    # Sort by output price descending (most expensive first)
+    for mid, p in sorted(items, key=lambda x: -x[1]["output"]):
+        prov = p.get("provider", "")
+        sym = "¥" if is_rmb(prov) else "$"
+        m_in = p["input"] * 1000
+        m_out = p["output"] * 1000
+        m_cache = p["cache_read"] * 1000
+        name, color, icon = prov_info(prov)
+        rows += f"""
     <tr>
-      <td {td}><b>{mid}</b></td>
+      <td {td}>{icon} <b>{mid}</b></td>
       <td {td_mono}>{sym}{m_in:.2f}</td>
       <td {td_mono}>{sym}{m_out:.2f}</td>
       <td {td_mono}>{sym}{m_cache:.2f}</td>
       <td {td_mono}>{fmt_tokens(p["context"])}</td>
     </tr>"""
+    return rows
+
+pricing_rows_usd = build_pricing_rows(False)
+pricing_rows_rmb = build_pricing_rows(True)
 
 now_bj = now_bjt.strftime("%Y年%m月%d日 %H:%M")
 media_table_scope = "— 今日" if media_rows_today else "— 历史累计"
+
+# --- 预计算定价参考区块 (避免 f-string 嵌套) ---
+pricing_th = 'style="padding:8px 12px;text-align:left;font-size:12px;color:#666;"'
+pricing_th_r = 'style="padding:8px 12px;text-align:right;font-size:12px;color:#666;"'
+pricing_table_head = f"""<tr style="background:#f0f0f0;">
+          <th {pricing_th}>模型</th>
+          <th {pricing_th_r}>输入</th><th {pricing_th_r}>输出</th>
+          <th {pricing_th_r}>缓存读</th><th {pricing_th_r}>上下文窗口</th>
+        </tr>"""
+
+def build_pricing_section(title, rows):
+    if not rows:
+        return ""
+    return f"""
+  <div style="padding:0 30px 15px;">
+    <div style="font-size:14px;color:#555;font-weight:600;margin-bottom:10px;">{title}</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>{pricing_table_head}</thead>
+      <tbody>{rows}</tbody>
+    </table>
+    </div>
+  </div>"""
+
+pricing_usd_section = build_pricing_section("💵 USD 模型", pricing_rows_usd)
+pricing_rmb_section = build_pricing_section("💴 RMB 模型", pricing_rows_rmb)
 
 # --- 预计算历史累计区块 (避免 f-string 嵌套) ---
 th_hist = 'style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;"'
@@ -990,20 +1024,8 @@ html = f"""<!DOCTYPE html>
                 border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
       💰 模型定价参考 (每 1M tokens)
     </div>
-    <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
-      <thead>
-        <tr style="background:#f0f0f0;">
-          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#666;">模型</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">输入</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">输出</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">缓存读</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">上下文窗口</th>
-        </tr>
-      </thead>
-      <tbody>{pricing_rows}</tbody>
-    </table>
-    </div>
+    {pricing_usd_section}
+    {pricing_rmb_section}
   </div>
 
   <!-- 页脚 -->
