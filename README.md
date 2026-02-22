@@ -1,6 +1,13 @@
 # AI Model Usage Monitor
 
-A comprehensive monitoring script for tracking token usage, media generation costs, and API spend across multiple AI providers. Designed for [OpenClaw](https://github.com/nicepkg/openclaw) gateway deployments, it scans session logs and produces a styled HTML email report on a scheduled basis.
+A monitoring suite for tracking AI model token usage, media generation costs, and API spend across multiple providers. Designed for [OpenClaw](https://github.com/nicepkg/openclaw) gateway deployments.
+
+### Scripts
+
+| Script | Schedule | Purpose |
+|--------|----------|---------|
+| `model-monitor.sh` | Hourly | Token usage & cost report across all providers (HTML email) |
+| `image-digest.py` | Daily at midnight BJT | Recap email with all AI-generated images from the day, embedded inline |
 
 ## Sample Report
 
@@ -55,6 +62,8 @@ The generated HTML email contains:
 
 ## Architecture
 
+### model-monitor.sh
+
 ```
 ┌─────────────────────────┐
 │   Data Sources          │
@@ -62,7 +71,7 @@ The generated HTML email contains:
 │ Session JSONL files     │──┐
 │ (.jsonl / .reset / .bak)│  │
 ├─────────────────────────┤  │
-│ media-usage.jsonl       │──┼──► Python aggregation ──► HTML report ──► SMTP email
+│ media-usage.jsonl       │──┼──► Python aggregation ──► HTML report ──► SMTP email (curl)
 │ (TTS + image logs)      │  │
 ├─────────────────────────┤  │
 │ Gateway debug logs      │──┘
@@ -72,6 +81,19 @@ The generated HTML email contains:
 
 - **Bash wrapper**: handles environment setup, email composition, and SMTP delivery via `curl`
 - **Embedded Python**: performs all data scanning, cost calculation, deduplication, trend computation, and HTML generation
+
+### image-digest.py
+
+```
+Gateway debug logs ──► collect image deliveries ──► filter to target BJT date
+(/tmp/openclaw/*.log)   for mediaKind=image          ──► embed inline (CID)
+                                                      ──► MIME email (smtplib)
+```
+
+- Standalone Python script using `smtplib` (no `curl` dependency)
+- Parses gateway logs for `mediaKind: "image"` delivery entries
+- Attaches each image inline via `Content-ID` references (works in most email clients)
+- At midnight BJT, collects the previous day's images; manual runs collect today's
 
 ## Prerequisites
 
@@ -138,14 +160,21 @@ If you add a model and see `$0.00` costs despite actual usage, check whether the
 ### Manual Run
 
 ```bash
+# Hourly usage report
 ./model-monitor.sh
+
+# Image digest (collects today's images when run during the day)
+python3 image-digest.py
 ```
 
 ### Scheduled (cron)
 
 ```cron
-# Run every hour at :02
+# Usage report — every hour at :02
 2 * * * * /path/to/model-monitor.sh >> /path/to/logs/model-monitor-cron.log 2>&1
+
+# Image digest — midnight BJT (16:00 UTC), recaps the day's images
+0 16 * * * /usr/bin/python3 /path/to/image-digest.py >> /path/to/logs/image-digest.log 2>&1
 ```
 
 ### Key File Paths
@@ -156,7 +185,8 @@ If you add a model and see `$0.00` costs despite actual usage, check whether the
 | `~/.openclaw/logs/media-usage.jsonl` | TTS and image generation usage log |
 | `/tmp/openclaw/openclaw-*.log` | Gateway debug logs (built-in tool detection) |
 | `~/.openclaw/openclaw.json` | Master config with model pricing |
-| `~/logs/model-monitor.log` | Script execution log |
+| `~/logs/model-monitor.log` | model-monitor.sh execution log |
+| `~/logs/image-digest.log` | image-digest.py execution log |
 
 ## Adding a New Provider or Model
 
