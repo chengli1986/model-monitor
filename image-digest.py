@@ -40,9 +40,13 @@ def load_env():
 
 
 def collect_images_for_date(target_date_str):
-    """Parse gateway logs and collect unique image deliveries for a BJT date.
+    """Parse gateway logs and collect image deliveries for a BJT date.
 
     A BJT date spans UTC: (D-1)T16:00 to DT16:00.
+
+    Returns (unique_images, total_sends):
+      - unique_images: list of unique image entries (deduped by URL), for the grid
+      - total_sends: raw delivery count including resends, for the cross-check
     """
     target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
 
@@ -61,6 +65,7 @@ def collect_images_for_date(target_date_str):
     utc_dates.add(bjt_end.astimezone(timezone.utc).strftime("%Y-%m-%d"))
 
     images = {}  # mediaUrl -> {ts_bjt, bytes, url}
+    total_sends = 0
 
     for utc_date in sorted(utc_dates):
         log_path = f"{GATEWAY_LOG_DIR}/openclaw-{utc_date}.log"
@@ -95,6 +100,7 @@ def collect_images_for_date(target_date_str):
                         continue
                     if dt_bjt.strftime("%Y-%m-%d") != target_date_str:
                         continue
+                    total_sends += 1
                     if url not in images:
                         images[url] = {
                             "ts": dt_bjt,
@@ -105,7 +111,8 @@ def collect_images_for_date(target_date_str):
             continue
 
     # Sort by timestamp
-    return sorted(images.values(), key=lambda x: x["ts"])
+    unique_images = sorted(images.values(), key=lambda x: x["ts"])
+    return unique_images, total_sends
 
 
 def fmt_size(b):
@@ -199,7 +206,7 @@ def classify_deliveries(image_entries, media_log_data):
     return new_entries, resend_entries
 
 
-def build_email(target_date_str, image_entries, media_log_data):
+def build_email(target_date_str, image_entries, media_log_data, total_sends):
     """Build multipart MIME email with inline images and cross-check section."""
     # Filter to images that still exist on disk
     valid = []
@@ -232,10 +239,11 @@ def build_email(target_date_str, image_entries, media_log_data):
     new_entries, resend_entries = classify_deliveries(valid, media_log_data)
     ml_total = media_log_data["script"] + media_log_data["builtin"]
     ml_cost = media_log_data["script_cost"] + media_log_data["builtin_cost"]
-    delivered = len(image_entries)  # total from gateway logs (before disk filter)
     on_disk = len(valid)
     new_count = len(new_entries)
     resend_count = len(resend_entries)
+    # total_sends = raw gateway log entries (same image sent 2x = counted 2x)
+    duplicate_sends = total_sends - on_disk  # sends of the same URL again
 
     # Untracked = generated via media-usage but no matching delivery (API error / not sent)
     untracked = ml_total - new_count
@@ -274,10 +282,17 @@ def build_email(target_date_str, image_entries, media_log_data):
         <td {td_num}>{resend_count}</td>
         <td {td_num}>$0 (免费)</td>
       </tr>"""
+    if duplicate_sends > 0:
+        crosscheck_rows += f"""
+      <tr>
+        <td {td_row}>📤 重复投递</td>
+        <td {td_num}>{duplicate_sends}</td>
+        <td {td_num}>$0 (同一文件)</td>
+      </tr>"""
     crosscheck_rows += f"""
       <tr>
         <td style="padding:6px 12px;font-size:12px;">📬 投递总计</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;">{on_disk}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;">{total_sends}</td>
         <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;">—</td>
       </tr>"""
 
@@ -417,24 +432,26 @@ def main():
         target = now_bjt.strftime("%Y-%m-%d")
 
     print(f"Collecting images for {target} (BJT)...")
-    entries = collect_images_for_date(target)
-    print(f"Found {len(entries)} unique image deliveries")
+    entries, total_sends = collect_images_for_date(target)
+    print(f"Found {len(entries)} unique images, {total_sends} total sends")
 
     # Cross-check against media-usage.jsonl
     media_log_data = collect_media_log_images(target)
     ml_total = media_log_data["script"] + media_log_data["builtin"]
     new_list, resend_list = classify_deliveries(entries, media_log_data)
     print(f"media-usage.jsonl: {ml_total} generated (script={media_log_data['script']}, builtin={media_log_data['builtin']})")
-    print(f"Classification: {len(new_list)} new + {len(resend_list)} re-sent = {len(entries)} total")
+    print(f"Classification: {len(new_list)} new + {len(resend_list)} re-sent old = {len(entries)} unique")
+    if total_sends > len(entries):
+        print(f"  Duplicate sends: {total_sends - len(entries)} (same file sent multiple times)")
     if resend_list:
-        print(f"  Re-sent: {', '.join(os.path.basename(e['url']) for e in resend_list)}")
+        print(f"  Re-sent old: {', '.join(os.path.basename(e['url']) for e in resend_list)}")
 
     if not entries:
         log(f"No images found for {target}")
         print("No images found. Skipping email.")
         return
 
-    result = build_email(target, entries, media_log_data)
+    result = build_email(target, entries, media_log_data, total_sends)
     if result is None:
         log(f"No image files still on disk for {target}")
         print("No image files on disk. Skipping email.")
