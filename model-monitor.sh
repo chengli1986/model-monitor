@@ -747,14 +747,17 @@ for key in sorted(today_by_model.keys(), key=lambda k: -today_by_model[k]["msgs"
 if not model_rows_today:
     model_rows_today = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#999;">今日暂无调用记录</td></tr>'
 
-# --- 历史模型明细表 ---
-model_rows_all = ""
-for key in sorted(alltime_by_model.keys(), key=lambda k: -alltime_by_model[k]["msgs"]):
-    d = alltime_by_model[key]
-    prov, model = key.split("/", 1)
-    name, color, icon = prov_info(prov)
-    sym = currency_symbol(prov)
-    model_rows_all += f"""
+# --- 历史模型明细表 (按币种分组，费用降序) ---
+def build_alltime_rows(currency_filter):
+    """Build table rows for models matching the currency filter, sorted by cost desc."""
+    rows = ""
+    keys = [k for k in alltime_by_model if is_rmb(k.split("/", 1)[0]) == currency_filter]
+    for key in sorted(keys, key=lambda k: -alltime_by_model[k]["cost"]):
+        d = alltime_by_model[key]
+        prov, model = key.split("/", 1)
+        name, color, icon = prov_info(prov)
+        sym = currency_symbol(prov)
+        rows += f"""
     <tr>
       <td {td}>{icon} <span style="color:{color};font-weight:600;">{name}</span></td>
       <td {td}><b>{model}</b></td>
@@ -764,6 +767,10 @@ for key in sorted(alltime_by_model.keys(), key=lambda k: -alltime_by_model[k]["m
       <td {td_mono}>{fmt_tokens(d["cache_read"])}</td>
       <td {td_mono_cost}>{fmt_cost(d["cost"], sym)}</td>
     </tr>"""
+    return rows
+
+model_rows_all_usd = build_alltime_rows(False)
+model_rows_all_rmb = build_alltime_rows(True)
 
 alltime_total_msgs = sum(d["msgs"] for d in alltime_by_provider.values())
 
@@ -817,6 +824,37 @@ for mid, p in sorted(pricing.items(), key=lambda x: x[1].get("provider", "")):
 
 now_bj = now_bjt.strftime("%Y年%m月%d日 %H:%M")
 media_table_scope = "— 今日" if media_rows_today else "— 历史累计"
+
+# --- 预计算历史累计区块 (避免 f-string 嵌套) ---
+th_hist = 'style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;"'
+hist_table_head = f"""<tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+          <th {th_hist}>厂商</th><th {th_hist}>模型</th><th {th_hist}>调用</th>
+          <th {th_hist}>输入</th><th {th_hist}>输出</th><th {th_hist}>缓存读</th><th {th_hist}>费用</th>
+        </tr>"""
+
+def build_history_section(title, rows, total_msgs, total_cost_str):
+    if not rows:
+        return ""
+    return f"""
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      📈 {title} ({total_msgs} 次调用 · {total_cost_str})
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>{hist_table_head}</thead>
+      <tbody>{rows}</tbody>
+    </table>
+    </div>
+  </div>"""
+
+history_usd_section = build_history_section(
+    "历史累计 · USD", model_rows_all_usd,
+    all_usd["msgs"], f"${all_usd['cost']:.4f}")
+history_rmb_section = build_history_section(
+    "历史累计 · RMB", model_rows_all_rmb,
+    all_rmb["msgs"], f"¥{all_rmb['cost']:.2f}")
 
 # --- 费用总览区块 ---
 def cost_badge(rmb_d, usd_d, label):
@@ -943,27 +981,8 @@ html = f"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- 历史累计 - 双币种 -->
-  <div style="padding:0 30px 25px;">
-    <div style="font-size:16px;color:#302b63;font-weight:600;
-                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
-      📈 历史累计 ({alltime_total_msgs} 次调用 ·
-      {"¥" + f"{all_rmb['cost']:.2f}" if all_rmb["msgs"] > 0 else ""}
-      {" + " if all_rmb["msgs"] > 0 and all_usd["msgs"] > 0 else ""}
-      {"$" + f"{all_usd['cost']:.4f}" if all_usd["msgs"] > 0 else ""})
-    </div>
-    <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
-      <thead>
-        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
-          <th {th}>厂商</th><th {th}>模型</th><th {th}>调用</th>
-          <th {th}>输入</th><th {th}>输出</th><th {th}>缓存读</th><th {th}>费用</th>
-        </tr>
-      </thead>
-      <tbody>{model_rows_all}</tbody>
-    </table>
-    </div>
-  </div>
+  {history_usd_section}
+  {history_rmb_section}
 
   <!-- 定价参考 -->
   <div style="padding:0 30px 25px;">
