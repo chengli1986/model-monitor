@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;
+             background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%);
+             margin:0;padding:20px;">
+<div style="max-width:900px;margin:0 auto;background:#f5f5f5;border-radius:16px;
+            box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+
+  <!-- 头部 -->
+  <div style="background:linear-gradient(135deg,#e8eaf6 0%,#f5f5f5 50%,#e3e7ed 100%);
+              color:#333;padding:35px 30px;text-align:center;">
+    <h1 style="margin:0;font-size:24px;font-weight:300;letter-spacing:3px;color:#222;">🤖 AI 模型使用监控</h1>
+    <div style="margin-top:8px;color:#666;font-size:13px;">OpenAI · Anthropic · Google · Moonshot · Alibaba | Token + TTS + 图片 全平台统一监控</div>
+    <div style="margin-top:14px;font-size:14px;background:rgba(0,0,0,.06);color:#444;
+                display:inline-block;padding:8px 22px;border-radius:20px;">2026年02月22日 21:40 北京时间</div>
+  </div>
+
+  <!-- 今日费用总览 - 双币种 -->
+  <div style="padding:25px 30px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:14px;color:#666;margin-bottom:12px;">今日费用 (2026-02-22)</div>
+      <div style="margin:10px 0;"><span style="color:#e74c3c;font-size:32px;font-weight:700;">¥3.18</span><span style="color:#ccc;font-size:20px;margin:0 15px;">+</span><span style="color:#2196f3;font-size:32px;font-weight:700;">$4.7687</span></div>
+      <div style="font-size:13px;color:#999;margin-top:10px;">
+        405 次调用 · 6.8M 输入 · 65.3k 输出
+      </div>
+    </div>
+    <div style="display:flex;gap:15px;flex-wrap:wrap;">
+      
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #6366f1;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🟣 Moonshot</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">¥0.0913</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        3 次调用 · 15.4k 输入 · 610 输出
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #10a37f;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🟢 OpenAI</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">$0.0100</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        3 次调用 · 20.8k 输入 · 143 输出
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #d97706;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🟠 Anthropic</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">$0.0268</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        2 次调用 · 8 输入 · 107 输出
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #ff6a00;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🟠 Alibaba</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">¥3.09</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        169 次调用 · 3.6M 输入 · 36.6k 输出
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #4285f4;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🔵 Google</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">$4.59</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        203 次调用 · 3.2M 输入 · 27.9k 输出
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid #9c27b0;">
+      <div style="font-size:14px;color:#666;margin-bottom:8px;">🎨 Media API</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">$0.1458</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">
+        25 次调用 · TTS + 图片生成
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- 今日按模型明细 -->
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      📊 今日按模型明细
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">厂商</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">模型</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">调用</th>
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">输入</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">输出</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">缓存读</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">费用</th>
+        </tr>
+      </thead>
+      <tbody>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔵 <span style="color:#4285f4;font-weight:600;">Google</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-pro</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">188</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3.1M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">27.2k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">2.3M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$4.40</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#ff6a00;font-weight:600;">Alibaba</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>qwen3.5-plus</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">169</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3.6M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">36.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">0</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">¥3.09</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔵 <span style="color:#4285f4;font-weight:600;">Google</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-3-pro-preview</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">15</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">83.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">674</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">32.4k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.1817</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟢 <span style="color:#10a37f;font-weight:600;">OpenAI</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-4.1-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">20.8k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">143</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">14.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.0100</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟣 <span style="color:#6366f1;font-weight:600;">Moonshot</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>kimi-k2.5</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">15.4k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">610</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">24.3k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">¥0.0913</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#d97706;font-weight:600;">Anthropic</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-haiku-4-5-20251001</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">2</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">8</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">107</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">19.2k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.0268</td>
+    </tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Media API (TTS / 图片) -->
+  
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      🎨 Media API (TTS / 图片生成) — 今日
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">服务</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">模型</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">调用</th>
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">用量</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">费用</th>
+        </tr>
+      </thead>
+      <tbody>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🎨 <span style="color:#4285f4;font-weight:600;">图片生成</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-flash-image</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3 张</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.1170</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔇 <span style="color:#ff9800;font-weight:600;">内置TTS (未追踪)</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>tts-builtin</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">17</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1,638 字符</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.0246</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔊 <span style="color:#10a37f;font-weight:600;">TTS 语音</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>tts-1</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">5</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">285 字符</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.004275</td>
+    </tr></tbody>
+    </table>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:8px;text-align:right;">
+      今日 $0.1458
+       · 累计 $0.1848 (26 次)
+    </div>
+    
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:15px;">
+      
+      <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #10a37f;">
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 今日语音</div>
+        <div style="font-size:22px;font-weight:700;color:#333;">22 <span style="font-size:14px;color:#999;">条生成</span>
+           · 18 <span style="font-size:14px;color:#999;">条投递</span></div>
+        <div style="font-size:12px;color:#666;margin-top:8px;">
+          总大小 4.9 MB · 平均 279.2 KB/条
+        </div>
+      </div>
+      
+      
+      <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #4285f4;">
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 今日图片</div>
+        <div style="font-size:22px;font-weight:700;color:#333;">3 <span style="font-size:14px;color:#999;">张生成</span>
+           · 7 <span style="font-size:14px;color:#999;">张投递</span></div>
+        <div style="font-size:12px;color:#666;margin-top:8px;">
+          总大小 1.3 MB · 平均 184.1 KB/张
+        </div>
+      </div>
+      
+    </div>
+    
+  </div>
+  
+
+  <!-- 用量趋势：昨日 / 同比 / 7天 / 30天 / 环比 -->
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      📆 用量趋势
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      
+    <div style="flex:1;min-width:180px;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">📅 昨日 (2026-02-21)</div>
+      <div style="font-size:18px;font-weight:700;color:#333;">¥5.24 + $1.9932</div>
+      <div style="font-size:12px;color:#666;margin-top:6px;">310 次调用</div>
+    </div>
+    <div style="flex:1;min-width:180px;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">📊 今日 vs 昨日</div>
+      <div style="font-size:18px;font-weight:700;color:#333;">
+        ¥ <span style="color:#4caf50;font-size:13px;font-weight:600;">↓ 39.3%</span>
+        &nbsp;&nbsp;$ <span style="color:#e74c3c;font-size:13px;font-weight:600;">↑ 139.3%</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-top:6px;">调用 <span style="color:#e74c3c;font-size:13px;font-weight:600;">↑ 30.6%</span></div>
+    </div>
+    <div style="flex:1;min-width:180px;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">📈 近 7 天</div>
+      <div style="font-size:18px;font-weight:700;color:#333;">¥195.14 + $18.8527</div>
+      <div style="font-size:12px;color:#666;margin-top:6px;">2356 次调用 · 环比 ¥ <span style="color:#999;font-size:12px;">—</span> $ <span style="color:#999;font-size:12px;">—</span></div>
+    </div>
+    <div style="flex:1;min-width:180px;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">📉 近 30 天</div>
+      <div style="font-size:18px;font-weight:700;color:#333;">¥195.14 + $18.8527</div>
+      <div style="font-size:12px;color:#666;margin-top:6px;">2356 次调用 · 环比 ¥ <span style="color:#999;font-size:12px;">—</span> $ <span style="color:#999;font-size:12px;">—</span></div>
+    </div>
+
+    </div>
+  </div>
+
+  <!-- 历史累计 - 双币种 -->
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      📈 历史累计 (2330 次调用 ·
+      ¥195.14
+       + 
+      $18.8527)
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">厂商</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">模型</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">调用</th>
+          <th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">输入</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">输出</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">缓存读</th><th style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;">费用</th>
+        </tr>
+      </thead>
+      <tbody>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟣 <span style="color:#6366f1;font-weight:600;">Moonshot</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>kimi-k2.5</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1028</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">31.0M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">296.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">73.7M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">¥181.99</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#ff6a00;font-weight:600;">Alibaba</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>qwen3.5-plus</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">377</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">11.0M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">76.1k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">0</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">¥9.13</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔵 <span style="color:#4285f4;font-weight:600;">Google</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-pro</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">251</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3.7M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">30.9k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3.2M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$5.39</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟢 <span style="color:#10a37f;font-weight:600;">OpenAI</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-4.1-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">196</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">4.6M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">20.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.8M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$2.05</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟢 <span style="color:#10a37f;font-weight:600;">OpenAI</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-5-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">127</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">8.9M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">107.2k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">2.8M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$2.51</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#ff6a00;font-weight:600;">Alibaba</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>qwen3-max</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">103</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.5M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">16.4k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">352.3k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">¥4.02</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#d97706;font-weight:600;">Anthropic</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-haiku-4-5-20251001</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">71</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">203</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">38.1k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">2.6M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$1.33</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔵 <span style="color:#4285f4;font-weight:600;">Google</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-flash</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">62</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">3.2M</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">6.0k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">606.0k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.9803</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#d97706;font-weight:600;">Anthropic</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-opus-4-6</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">35</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">47</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">7.5k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">599.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$3.39</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟢 <span style="color:#10a37f;font-weight:600;">OpenAI</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-4.1</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">27</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">581.2k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">4.8k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">133.0k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$1.27</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟠 <span style="color:#d97706;font-weight:600;">Anthropic</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-sonnet-4-6</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">23</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">128</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">20.5k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">595.5k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$1.39</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🔵 <span style="color:#4285f4;font-weight:600;">Google</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-3-pro-preview</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">20</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">83.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">674</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">32.4k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.1817</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;">🟢 <span style="color:#10a37f;font-weight:600;">OpenAI</span></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-5.2</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">10</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">99.2k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">824</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">46.6k</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;font-weight:bold;color:#e74c3c;">$0.1933</td>
+    </tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- 定价参考 -->
+  <div style="padding:0 30px 25px;">
+    <div style="font-size:16px;color:#302b63;font-weight:600;
+                border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
+      💰 模型定价参考 (每 1M tokens)
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#f0f0f0;">
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#666;">模型</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">输入</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">输出</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">缓存读</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#666;">上下文窗口</th>
+        </tr>
+      </thead>
+      <tbody>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>qwen3-max</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥2.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥10.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥0.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">262.1k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>qwen3.5-plus</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥0.80</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥4.80</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥0.16</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-sonnet-4-6</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$3.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$15.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.30</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">200.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-opus-4-6</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$5.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$25.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">200.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>claude-haiku-4-5-20251001</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$1.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$5.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.10</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">200.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-3-pro-preview</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$2.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$12.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.20</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-3-flash-preview</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$3.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.05</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-pro</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$1.25</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$10.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.12</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gemini-2.5-flash</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.30</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$2.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.03</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>kimi-k2.5</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥4.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥21.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">¥0.70</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">262.1k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-4.1</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$2.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$8.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-4.1-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.40</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$1.60</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.10</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">1.0M</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>o3</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$2.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$8.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.50</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">200.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>o4-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$1.10</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$4.40</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.28</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">200.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-5.2</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$1.75</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$14.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.17</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">400.0k</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;"><b>gpt-5-mini</b></td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.25</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$2.00</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">$0.03</td>
+      <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;">400.0k</td>
+    </tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <div style="background:#1a1a2e;color:rgba(255,255,255,.7);padding:22px;
+              text-align:center;font-size:12px;line-height:1.8;">
+    <p>📡 数据来源: OpenClaw 会话日志 (34 个文件) + Media API 日志</p>
+    <p>💱 Moonshot / Alibaba 以人民币计费 | OpenAI / Anthropic / Google 以美元计费</p>
+    <p>⏱️ 每小时自动推送 | 费用基于 openclaw.json 配置定价</p>
+    <p style="opacity:.6;">🦞 龙虾助手 | AI 模型使用监控</p>
+  </div>
+
+</div>
+</body></html>

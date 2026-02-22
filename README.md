@@ -2,6 +2,17 @@
 
 A comprehensive monitoring script for tracking token usage, media generation costs, and API spend across multiple AI providers. Designed for [OpenClaw](https://github.com/nicepkg/openclaw) gateway deployments, it scans session logs and produces a styled HTML email report on a scheduled basis.
 
+## Sample Report
+
+A sample HTML report is included at [`sample-report.html`](sample-report.html). Open it in a browser to see the full layout. The report includes:
+
+- A headline dual-currency cost banner (USD + RMB)
+- Per-provider summary cards with call counts and token volumes
+- A Media API card for TTS and image generation spend
+- Detailed per-model breakdown tables (today + alltime)
+- Trend cards with 7-day / 30-day rolling totals and percentage change badges
+- A pricing reference table showing configured rates per 1M tokens
+
 ## Supported Providers
 
 | Provider | Currency | Models |
@@ -109,6 +120,19 @@ RMB_PROVIDERS = {"moonshot", "alibaba"}  # all others default to USD
 
 To add a new RMB-denominated provider, add its ID to this set.
 
+### Model Aliases
+
+Some providers return a different model name in API responses than what's configured. The `MODEL_ALIASES` dict maps API-returned names to config names so pricing lookups succeed:
+
+```python
+MODEL_ALIASES = {
+    "qwen-max": "qwen3-max",
+    "qwen-plus": "qwen3.5-plus",
+}
+```
+
+If you add a model and see `$0.00` costs despite actual usage, check whether the API returns a different name than your config ID — if so, add a mapping here.
+
 ## Usage
 
 ### Manual Run
@@ -120,7 +144,8 @@ To add a new RMB-denominated provider, add its ID to this set.
 ### Scheduled (cron)
 
 ```cron
-0 * * * * /home/ubuntu/model-monitor.sh >> /home/ubuntu/logs/model-monitor-cron.log 2>&1
+# Run every hour at :02
+2 * * * * /path/to/model-monitor.sh >> /path/to/logs/model-monitor-cron.log 2>&1
 ```
 
 ### Key File Paths
@@ -132,6 +157,128 @@ To add a new RMB-denominated provider, add its ID to this set.
 | `/tmp/openclaw/openclaw-*.log` | Gateway debug logs (built-in tool detection) |
 | `~/.openclaw/openclaw.json` | Master config with model pricing |
 | `~/logs/model-monitor.log` | Script execution log |
+
+## Adding a New Provider or Model
+
+### Adding a Model to an Existing Provider
+
+1. Add the model entry to `openclaw.json` under the provider's `models` array with `id` and `cost` fields
+2. If the API returns a different model name than your `id`, add a mapping to `MODEL_ALIASES` in the script
+3. Restart the gateway: `systemctl --user restart openclaw-gateway`
+
+### Adding a New Provider
+
+1. Add the provider config to `openclaw.json` under `models.providers` with its models and pricing
+2. Add a display entry in `PROVIDER_DISPLAY` for the report card color and icon:
+   ```python
+   PROVIDER_DISPLAY = {
+       "your-provider": ("Display Name", "#hex-color", "🔵"),
+   }
+   ```
+3. Add the provider ID to the card rendering loop:
+   ```python
+   for prov in ["moonshot", "openai", "anthropic", "alibaba", "google", "your-provider"]:
+   ```
+4. If the provider uses RMB, add it to `RMB_PROVIDERS`
+5. Restart the gateway
+
+## Expected Data Formats
+
+### Session JSONL Messages
+
+Each line in a session `.jsonl` file is a JSON object. The script processes entries with `type: "message"`:
+
+```json
+{
+  "type": "message",
+  "id": "b0847274",
+  "timestamp": "2026-02-21T18:30:39.081Z",
+  "message": {
+    "provider": "alibaba",
+    "model": "qwen3.5-plus",
+    "usage": {
+      "input": 14899,
+      "output": 435,
+      "cacheRead": 0,
+      "cacheWrite": 0
+    }
+  }
+}
+```
+
+Required fields: `type`, `id`, `timestamp`, `message.provider`, `message.model`, `message.usage.{input,output,cacheRead,cacheWrite}`.
+
+### Media Usage Log
+
+Each line in `media-usage.jsonl`:
+
+```json
+{
+  "id": "1c9a2a80-659a-4d93-a1f3-12211abfe0ad",
+  "ts": "2026-02-21T18:28:09Z",
+  "service": "tts",
+  "provider": "openai",
+  "model": "tts-1",
+  "unit": "chars",
+  "quantity": 32,
+  "cost": 0.00048,
+  "meta": { "voice": "alloy" }
+}
+```
+
+- `service`: `"tts"` | `"image"` | `"tts-builtin"` | `"image-builtin"`
+- `unit`: `"chars"` for TTS, `"image"` for image generation
+- `cost`: USD cost of this API call
+
+## Troubleshooting
+
+### Model shows $0.00 cost despite having usage
+
+The model ID in API responses doesn't match the `id` in `openclaw.json`. Check `MODEL_ALIASES` — you likely need to add a mapping. Run this to find unpriced models:
+
+```bash
+# Inside the script's Python, add temporarily:
+for key in today_by_model:
+    model = key.split("/", 1)[1]
+    if model not in pricing and resolve_model(model) not in pricing:
+        print(f"UNPRICED: {key}", file=sys.stderr)
+```
+
+### Report shows stale or missing models
+
+The gateway caches its model catalog in memory. After changing `openclaw.json`, restart:
+
+```bash
+systemctl --user restart openclaw-gateway
+```
+
+### Media usage not tracked (built-in tools)
+
+If users invoke the gateway's built-in `tts` or `image` tools (instead of skill scripts), those calls only appear in gateway debug logs at `/tmp/openclaw/openclaw-*.log`. The script auto-detects and persists these to `media-usage.jsonl`, but if the logs are rotated before the script runs, the entries are lost. The hourly cron schedule prevents this under normal conditions.
+
+### Email delivery fails silently
+
+Check `~/logs/model-monitor.log` for curl exit codes and error output. Common issues:
+- Exit 28: connection timeout (SMTP server unreachable)
+- Exit 67: authentication failed (check `SMTP_USER` / `SMTP_PASS`)
+- Exit 60: SSL certificate problem
+
+### Duplicate counting
+
+If message counts seem inflated, check for overlapping data across `.jsonl` + `.reset.*` + `.bak.*` files. The script deduplicates by message `id`, but messages without an `id` field bypass dedup. Run:
+
+```bash
+python3 -c "
+import json, glob, os
+no_id = 0
+for f in glob.glob(os.path.expanduser('~/.openclaw/agents/main/sessions/*.jsonl*')):
+    for line in open(f):
+        obj = json.loads(line.strip())
+        if obj.get('type') == 'message' and not obj.get('id'):
+            no_id += 1
+print(f'Messages without id: {no_id}')
+"
+```
 
 ## Design Decisions
 
