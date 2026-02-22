@@ -19,6 +19,7 @@ from pathlib import Path
 
 LOG_FILE = os.path.expanduser("~/logs/image-digest.log")
 GATEWAY_LOG_DIR = "/tmp/openclaw"
+MEDIA_LOG = os.path.expanduser("~/.openclaw/logs/media-usage.jsonl")
 BJT = timezone(timedelta(hours=8))
 ENV_FILE = os.path.expanduser("~/.stock-monitor.env")
 
@@ -115,8 +116,57 @@ def fmt_size(b):
     return f"{b} B"
 
 
-def build_email(target_date_str, image_entries):
-    """Build multipart MIME email with inline images."""
+def collect_media_log_images(target_date_str):
+    """Cross-check: count image entries in media-usage.jsonl for the same BJT date.
+
+    Returns dict with counts from model-monitor's data source, so we can
+    compare against gateway delivery logs.
+    """
+    result = {"script": 0, "builtin": 0, "script_cost": 0.0, "builtin_cost": 0.0}
+    seen = set()
+    if not os.path.isfile(MEDIA_LOG):
+        return result
+    try:
+        with open(MEDIA_LOG) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                mid = obj.get("id", "")
+                if mid and mid in seen:
+                    continue
+                if mid:
+                    seen.add(mid)
+                service = obj.get("service", "")
+                if service not in ("image", "image-builtin"):
+                    continue
+                ts_str = obj.get("ts", "")
+                if not ts_str:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00")).astimezone(BJT)
+                    if dt.strftime("%Y-%m-%d") != target_date_str:
+                        continue
+                except (ValueError, TypeError):
+                    continue
+                cost = float(obj.get("cost", 0))
+                if service == "image":
+                    result["script"] += 1
+                    result["script_cost"] += cost
+                else:
+                    result["builtin"] += 1
+                    result["builtin_cost"] += cost
+    except IOError:
+        pass
+    return result
+
+
+def build_email(target_date_str, image_entries, media_log_data):
+    """Build multipart MIME email with inline images and cross-check section."""
     # Filter to images that still exist on disk
     valid = []
     for entry in image_entries:
@@ -144,6 +194,74 @@ def build_email(target_date_str, image_entries):
           <div style="font-size:10px;color:#999;">{ts_str} &middot; {fmt_size(entry['bytes'])}</div>
         </div>"""
 
+    # --- Cross-check section ---
+    ml_total = media_log_data["script"] + media_log_data["builtin"]
+    ml_cost = media_log_data["script_cost"] + media_log_data["builtin_cost"]
+    delivered = len(image_entries)  # total from gateway logs (before disk filter)
+    on_disk = len(valid)
+
+    matched = ml_total == delivered
+    status_color = "#4caf50" if matched else "#e74c3c"
+    status_icon = "&#10003;" if matched else "&#10007;"
+    status_text = "一致" if matched else "不一致"
+
+    crosscheck_rows = f"""
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">生成记录 (media-usage.jsonl)</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{ml_total}</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${ml_cost:.4f}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">&nbsp;&nbsp;└ 脚本生成</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{media_log_data["script"]}</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${media_log_data["script_cost"]:.4f}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">&nbsp;&nbsp;└ 内置工具</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{media_log_data["builtin"]}</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">${media_log_data["builtin_cost"]:.4f}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;">投递记录 (gateway logs)</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">{delivered}</td>
+        <td style="padding:6px 12px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">—</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;">磁盘文件 (仍存在)</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;">{on_disk}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;font-family:monospace;">—</td>
+      </tr>"""
+
+    crosscheck_html = f"""
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid #e0e0e0;">
+      <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:10px;">
+        📊 数据校验 &nbsp;
+        <span style="color:{status_color};font-size:12px;font-weight:700;">{status_icon} {status_text}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f0f2f5;">
+            <th style="padding:6px 12px;text-align:left;font-size:11px;color:#999;">数据源</th>
+            <th style="padding:6px 12px;text-align:right;font-size:11px;color:#999;">数量</th>
+            <th style="padding:6px 12px;text-align:right;font-size:11px;color:#999;">费用</th>
+          </tr>
+        </thead>
+        <tbody>{crosscheck_rows}</tbody>
+      </table>"""
+
+    if not matched:
+        diff = abs(ml_total - delivered)
+        if ml_total > delivered:
+            hint = f"media-usage.jsonl 多 {diff} 条 — 可能有图片生成但未投递（API 错误或用户取消）"
+        else:
+            hint = f"gateway 投递多 {diff} 条 — 可能有重发旧图片，或 media-usage.jsonl 漏记"
+        crosscheck_html += f"""
+      <div style="margin-top:8px;padding:8px 12px;background:#fff3e0;border-radius:6px;font-size:11px;color:#e65100;">
+        ⚠️ {hint}
+      </div>"""
+
+    crosscheck_html += "</div>"
+
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;
@@ -161,7 +279,7 @@ def build_email(target_date_str, image_entries):
   <div style="padding:20px 24px;">
     <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
       <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:#333;">{len(valid)}</div>
+        <div style="font-size:28px;font-weight:700;color:#333;">{on_disk}</div>
         <div style="font-size:12px;color:#999;">张图片</div>
       </div>
       <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
@@ -169,14 +287,16 @@ def build_email(target_date_str, image_entries):
         <div style="font-size:12px;color:#999;">总大小</div>
       </div>
       <div style="flex:1;min-width:120px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:#333;">{fmt_size(avg_bytes)}</div>
-        <div style="font-size:12px;color:#999;">平均大小</div>
+        <div style="font-size:28px;font-weight:700;color:#333;">${ml_cost:.4f}</div>
+        <div style="font-size:12px;color:#999;">费用</div>
       </div>
     </div>
 
     <div style="text-align:center;">
       {grid_items}
     </div>
+
+    {crosscheck_html}
   </div>
 
   <div style="background:#f8f9fa;padding:16px;text-align:center;font-size:11px;color:#999;">
@@ -243,12 +363,19 @@ def main():
     entries = collect_images_for_date(target)
     print(f"Found {len(entries)} unique image deliveries")
 
+    # Cross-check against media-usage.jsonl
+    media_log_data = collect_media_log_images(target)
+    ml_total = media_log_data["script"] + media_log_data["builtin"]
+    print(f"media-usage.jsonl: {ml_total} entries (script={media_log_data['script']}, builtin={media_log_data['builtin']})")
+    if ml_total != len(entries):
+        print(f"  ⚠ MISMATCH: gateway={len(entries)} vs media-log={ml_total}")
+
     if not entries:
         log(f"No images found for {target}")
         print("No images found. Skipping email.")
         return
 
-    result = build_email(target, entries)
+    result = build_email(target, entries, media_log_data)
     if result is None:
         log(f"No image files still on disk for {target}")
         print("No image files on disk. Skipping email.")
