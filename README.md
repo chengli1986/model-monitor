@@ -2,12 +2,29 @@
 
 A monitoring suite for tracking AI model token usage, media generation costs, and API spend across multiple providers. Designed for [OpenClaw](https://github.com/nicepkg/openclaw) gateway deployments.
 
+### Repository Structure
+
+```
+model-monitor/
+├── model-monitor.sh              # Hourly token usage & cost report (HTML email)
+├── image-digest.py               # Daily image recap email with inline thumbnails
+├── skills/
+│   └── modelusage/
+│       └── SKILL.md              # OpenClaw /modelusage slash command config
+├── sample-report.html            # Example model-monitor output
+└── README.md
+```
+
 ### Scripts
 
 | Script | Schedule | Purpose |
 |--------|----------|---------|
 | `model-monitor.sh` | Hourly | Token usage & cost report across all providers (HTML email) |
 | `image-digest.py` | Daily at midnight BJT | Recap email with all AI-generated images from the day, embedded inline |
+
+### OpenClaw Integration
+
+The `/modelusage` slash command (defined in `skills/modelusage/SKILL.md`) triggers both reports when invoked manually from the OpenClaw chat interface.
 
 ## Sample Report
 
