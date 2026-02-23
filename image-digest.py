@@ -55,14 +55,15 @@ def collect_images_for_date(target_date_str):
                          tzinfo=BJT)
     bjt_end = bjt_start + timedelta(days=1)
 
-    # Gateway log files that could contain entries for this BJT date
+    # Gateway log files that could contain entries for this BJT date.
+    # Include 1 extra day before the range because the gateway may not
+    # rotate log files at midnight UTC (entries spill into the prior file).
     utc_dates = set()
-    cursor = bjt_start.astimezone(timezone.utc)
-    while cursor < bjt_end.astimezone(timezone.utc):
+    cursor = bjt_start.astimezone(timezone.utc) - timedelta(days=1)
+    end_utc = bjt_end.astimezone(timezone.utc)
+    while cursor <= end_utc:
         utc_dates.add(cursor.strftime("%Y-%m-%d"))
         cursor += timedelta(days=1)
-    # Also include the UTC date of the end boundary
-    utc_dates.add(bjt_end.astimezone(timezone.utc).strftime("%Y-%m-%d"))
 
     images = {}  # mediaUrl -> {ts_bjt, bytes, url}
     total_sends = 0
@@ -422,9 +423,14 @@ def main():
 
     # Target date: today in BJT (when run at midnight, this covers the day that just ended)
     now_bjt = datetime.now(BJT)
-    # Cron fires at 00:00 BJT — we want the day that just ended (yesterday).
-    # Use hour < 2 to guard against cron slippage past exact midnight.
-    if now_bjt.hour < 2:
+    if len(sys.argv) > 1 and sys.argv[1] == "today":
+        # Explicit "today" — always use current BJT date
+        target = now_bjt.strftime("%Y-%m-%d")
+    elif len(sys.argv) > 1:
+        # Explicit date argument (YYYY-MM-DD)
+        target = sys.argv[1]
+    elif now_bjt.hour == 0:
+        # Cron fires at 00:00 BJT — we want the day that just ended (yesterday).
         target = (now_bjt - timedelta(days=1)).strftime("%Y-%m-%d")
     else:
         # Manual run during the day — use today
