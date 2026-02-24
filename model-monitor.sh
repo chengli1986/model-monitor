@@ -22,6 +22,7 @@ from datetime import datetime, timezone, timedelta
 SESSION_DIR = os.path.expanduser("~/.openclaw/agents/main/sessions")
 CONFIG_FILE = os.path.expanduser("~/.openclaw/openclaw.json")
 MEDIA_LOG = os.path.expanduser("~/.openclaw/logs/media-usage.jsonl")
+THINKING_LOG = os.path.expanduser("~/.openclaw/logs/gemini-thinking-tokens.jsonl")
 
 BJT = timezone(timedelta(hours=8))
 now_bjt = datetime.now(BJT)
@@ -179,6 +180,85 @@ for fpath in all_files:
                     continue
     except IOError:
         continue
+
+# ============================================================
+# 3-think. 扫描 gemini-thinking-tokens.jsonl - 思考 token 用量
+# ============================================================
+thinking_by_model = {}     # { "google/gemini-2.5-pro": {"today": N, "yesterday": N, "alltime": N} }
+thinking_cost_by_model = {}  # same structure but costs
+thinking_cost_today_usd = 0.0
+thinking_cost_yesterday_usd = 0.0
+thinking_cost_alltime_usd = 0.0
+thinking_by_provider_daily = {}  # { "2026-02-24": {"google": cost} }
+
+if os.path.isfile(THINKING_LOG):
+    try:
+        with open(THINKING_LOG) as f:
+            for line in f:
+                try:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    obj = json.loads(line)
+                    model = obj.get("model", "")
+                    thinking = obj.get("thinking", 0) or 0
+                    if thinking <= 0 or not model:
+                        continue
+
+                    # Resolve model alias and find pricing
+                    resolved = resolve_model(model)
+                    key = f"google/{resolved}"
+                    p = pricing.get(resolved, {})
+                    output_rate = p.get("output", 0)
+                    cost = thinking * output_rate / 1000  # pricing is per 1K tokens
+
+                    # Parse timestamp (UTC → BJT)
+                    ts_str = obj.get("ts", "")
+                    date_str = None
+                    if ts_str:
+                        try:
+                            ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00")).astimezone(BJT)
+                            date_str = ts_dt.strftime("%Y-%m-%d")
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Initialize model entries
+                    if key not in thinking_by_model:
+                        thinking_by_model[key] = {"today": 0, "yesterday": 0, "alltime": 0}
+                    if key not in thinking_cost_by_model:
+                        thinking_cost_by_model[key] = {"today": 0.0, "yesterday": 0.0, "alltime": 0.0}
+
+                    # Alltime
+                    thinking_by_model[key]["alltime"] += thinking
+                    thinking_cost_by_model[key]["alltime"] += cost
+                    thinking_cost_alltime_usd += cost
+
+                    if date_str:
+                        if date_str == today_str:
+                            thinking_by_model[key]["today"] += thinking
+                            thinking_cost_by_model[key]["today"] += cost
+                            thinking_cost_today_usd += cost
+                        if date_str == yesterday_str:
+                            thinking_by_model[key]["yesterday"] += thinking
+                            thinking_cost_by_model[key]["yesterday"] += cost
+                            thinking_cost_yesterday_usd += cost
+                        # Inject into daily_by_provider for trend calculation
+                        if date_str not in thinking_by_provider_daily:
+                            thinking_by_provider_daily[date_str] = 0.0
+                        thinking_by_provider_daily[date_str] += cost
+                except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                    continue
+    except IOError:
+        pass
+
+# Inject thinking costs into daily_by_provider for trend calculations
+for d_str, think_cost in thinking_by_provider_daily.items():
+    if d_str not in daily_by_provider:
+        daily_by_provider[d_str] = {}
+    dp = daily_by_provider[d_str]
+    if "_thinking" not in dp:
+        dp["_thinking"] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0, "msgs": 0}
+    dp["_thinking"]["cost"] += think_cost
 
 # ============================================================
 # 3a. 扫描 off-gateway media-usage.jsonl (TTS / 图片生成)
@@ -714,6 +794,10 @@ yest_media_usd = sum(d["cost"] for d in media_yesterday.values())
 yest_media_calls = sum(d["calls"] for d in media_yesterday.values())
 yest_usd["cost"] += yest_media_usd
 yest_usd["msgs"] += yest_media_calls
+# Include Gemini thinking token costs in USD totals
+today_usd["cost"] += thinking_cost_today_usd
+yest_usd["cost"] += thinking_cost_yesterday_usd
+all_usd["cost"] += thinking_cost_alltime_usd
 today_total_msgs = today_rmb["msgs"] + today_usd["msgs"]
 today_total_input = today_rmb["input"] + today_usd["input"]
 today_total_output = today_rmb["output"] + today_usd["output"]
@@ -737,14 +821,25 @@ for prov in ["moonshot", "openai", "anthropic", "alibaba", "google"]:
     if d["msgs"] == 0 and prov not in alltime_by_provider:
         continue
     sym = currency_symbol(prov)
+    # For Google, include thinking token cost
+    prov_display_cost = d["cost"]
+    thinking_annotation = ""
+    if prov == "google" and thinking_cost_today_usd > 0:
+        prov_display_cost += thinking_cost_today_usd
+        # Sum today's thinking tokens across all Google models
+        today_thinking_tokens = sum(v["today"] for v in thinking_by_model.values())
+        thinking_annotation = f'''
+      <div style="font-size:11px;color:#9c27b0;margin-top:4px;">
+        🧠 思考 {fmt_tokens(today_thinking_tokens)} tokens (+{fmt_cost(thinking_cost_today_usd, "$")})
+      </div>'''
     provider_cards += f"""
     <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:18px;
                 box-shadow:0 2px 8px rgba(0,0,0,.08);border-top:4px solid {color};">
       <div style="font-size:14px;color:#666;margin-bottom:8px;">{icon} {name}</div>
-      <div style="font-size:24px;font-weight:700;color:#333;">{fmt_cost(d["cost"], sym)}</div>
+      <div style="font-size:24px;font-weight:700;color:#333;">{fmt_cost(prov_display_cost, sym)}</div>
       <div style="font-size:12px;color:#999;margin-top:6px;">
         {d["msgs"]} 次调用 · {fmt_tokens(d["input"])} 输入 · {fmt_tokens(d["output"])} 输出
-      </div>
+      </div>{thinking_annotation}
     </div>"""
 
 # --- Media API 卡片 (TTS + 图片) ---
@@ -827,12 +922,18 @@ trend_cards = f"""
 """
 
 # --- 今日模型明细表 ---
+td_mono_think = 'style="padding:10px 12px;font-size:13px;border-bottom:1px solid #eee;font-family:monospace;text-align:right;color:#9c27b0;"'
+
 model_rows_today = ""
 for key in sorted(today_by_model.keys(), key=lambda k: -today_by_model[k]["msgs"]):
     d = today_by_model[key]
     prov, model = key.split("/", 1)
     name, color, icon = prov_info(prov)
     sym = currency_symbol(prov)
+    think_tokens = thinking_by_model.get(key, {}).get("today", 0)
+    think_cost = thinking_cost_by_model.get(key, {}).get("today", 0.0)
+    total_cost = d["cost"] + think_cost
+    think_cell = f'{fmt_tokens(think_tokens)}' if think_tokens > 0 else '—'
     model_rows_today += f"""
     <tr>
       <td {td}>{icon} <span style="color:{color};font-weight:600;">{name}</span></td>
@@ -840,22 +941,30 @@ for key in sorted(today_by_model.keys(), key=lambda k: -today_by_model[k]["msgs"
       <td {td_mono}>{d["msgs"]}</td>
       <td {td_mono}>{fmt_tokens(d["input"])}</td>
       <td {td_mono}>{fmt_tokens(d["output"])}</td>
+      <td {td_mono_think}>{think_cell}</td>
       <td {td_mono}>{fmt_tokens(d["cache_read"])}</td>
-      <td {td_mono_cost}>{fmt_cost(d["cost"], sym)}</td>
+      <td {td_mono_cost}>{fmt_cost(total_cost, sym)}</td>
     </tr>"""
 if not model_rows_today:
-    model_rows_today = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#999;">今日暂无调用记录</td></tr>'
+    model_rows_today = '<tr><td colspan="8" style="padding:20px;text-align:center;color:#999;">今日暂无调用记录</td></tr>'
 
 # --- 历史模型明细表 (按币种分组，费用降序) ---
 def build_alltime_rows(currency_filter):
     """Build table rows for models matching the currency filter, sorted by cost desc."""
     rows = ""
     keys = [k for k in alltime_by_model if is_rmb(k.split("/", 1)[0]) == currency_filter]
-    for key in sorted(keys, key=lambda k: -alltime_by_model[k]["cost"]):
+    # Sort by total cost including thinking
+    def total_cost(k):
+        return alltime_by_model[k]["cost"] + thinking_cost_by_model.get(k, {}).get("alltime", 0.0)
+    for key in sorted(keys, key=lambda k: -total_cost(k)):
         d = alltime_by_model[key]
         prov, model = key.split("/", 1)
         name, color, icon = prov_info(prov)
         sym = currency_symbol(prov)
+        think_tokens = thinking_by_model.get(key, {}).get("alltime", 0)
+        think_cost = thinking_cost_by_model.get(key, {}).get("alltime", 0.0)
+        row_total_cost = d["cost"] + think_cost
+        think_cell = f'{fmt_tokens(think_tokens)}' if think_tokens > 0 else '—'
         rows += f"""
     <tr>
       <td {td}>{icon} <span style="color:{color};font-weight:600;">{name}</span></td>
@@ -863,8 +972,9 @@ def build_alltime_rows(currency_filter):
       <td {td_mono}>{d["msgs"]}</td>
       <td {td_mono}>{fmt_tokens(d["input"])}</td>
       <td {td_mono}>{fmt_tokens(d["output"])}</td>
+      <td {td_mono_think}>{think_cell}</td>
       <td {td_mono}>{fmt_tokens(d["cache_read"])}</td>
-      <td {td_mono_cost}>{fmt_cost(d["cost"], sym)}</td>
+      <td {td_mono_cost}>{fmt_cost(row_total_cost, sym)}</td>
     </tr>"""
     return rows
 
@@ -1006,7 +1116,7 @@ pricing_rmb_section = build_pricing_section("💴 RMB 模型", pricing_rows_rmb)
 th_hist = 'style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;"'
 hist_table_head = f"""<tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
           <th {th_hist}>厂商</th><th {th_hist}>模型</th><th {th_hist}>调用</th>
-          <th {th_hist}>输入</th><th {th_hist}>输出</th><th {th_hist}>缓存读</th><th {th_hist}>费用</th>
+          <th {th_hist}>输入</th><th {th_hist}>输出</th><th {th_hist}>🧠思考</th><th {th_hist}>缓存读</th><th {th_hist}>费用</th>
         </tr>"""
 
 def build_history_section(title, rows, total_msgs, total_cost_str):
@@ -1088,7 +1198,7 @@ html = f"""<!DOCTYPE html>
       <thead>
         <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
           <th {th}>厂商</th><th {th}>模型</th><th {th}>调用</th>
-          <th {th}>输入</th><th {th}>输出</th><th {th}>缓存读</th><th {th}>费用</th>
+          <th {th}>输入</th><th {th}>输出</th><th {th}>🧠思考</th><th {th}>缓存读</th><th {th}>费用</th>
         </tr>
       </thead>
       <tbody>{model_rows_today}</tbody>
@@ -1171,12 +1281,15 @@ html = f"""<!DOCTYPE html>
     </div>
     {pricing_usd_section}
     {pricing_rmb_section}
+    <div style="font-size:11px;color:#999;margin-top:8px;padding:0 4px;">
+      🧠 Gemini 推理模型的思考 token 按输出价格计费，通过 thinking-proxy 单独追踪
+    </div>
   </div>
 
   <!-- 页脚 -->
   <div style="background:#1a1a2e;color:rgba(255,255,255,.7);padding:22px;
               text-align:center;font-size:12px;line-height:1.8;">
-    <p>📡 数据来源: OpenClaw 会话日志 ({len(all_files)} 个文件) + Media API 日志</p>
+    <p>📡 数据来源: OpenClaw 会话日志 ({len(all_files)} 个文件) + Media API 日志 + Thinking Proxy 日志</p>
     <p>💱 Moonshot / Alibaba 以人民币计费 | OpenAI / Anthropic / Google 以美元计费</p>
     <p>⏱️ 每小时自动推送 | 费用基于 openclaw.json 配置定价</p>
     <p style="opacity:.6;">🦞 龙虾助手 | AI 模型使用监控</p>
