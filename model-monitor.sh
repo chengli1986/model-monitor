@@ -759,6 +759,83 @@ def pct_change(current, previous):
     return (current - previous) / previous * 100
 
 # ============================================================
+# 3e. 生成费用趋势柱状图 (7天 / 30天)
+# ============================================================
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64 as _b64
+
+
+def build_trend_chart(daily_by_provider, num_days, title):
+    """生成双Y轴柱状图: 左轴 RMB (红), 右轴 USD (蓝), 返回 base64 PNG"""
+    dates = []
+    rmb_vals = []
+    usd_vals = []
+    for i in range(num_days - 1, -1, -1):
+        d = (now_bjt.date() - timedelta(days=i))
+        d_str = d.strftime("%Y-%m-%d")
+        dates.append(d)
+        day_data = daily_by_provider.get(d_str, {})
+        rmb = sum(v["cost"] for k, v in day_data.items() if is_rmb(k))
+        usd = sum(v["cost"] for k, v in day_data.items() if not is_rmb(k))
+        rmb_vals.append(rmb)
+        usd_vals.append(usd)
+
+    has_rmb = any(v > 0 for v in rmb_vals)
+    has_usd = any(v > 0 for v in usd_vals)
+    if not has_rmb and not has_usd:
+        return ""
+
+    fig_h = 2.5 if num_days <= 7 else 3.0
+    fig, ax1 = plt.subplots(figsize=(7, fig_h))
+    fig.patch.set_facecolor("#f5f5f5")
+    ax1.set_facecolor("#f5f5f5")
+
+    x_indices = range(len(dates))
+    bar_width = 0.35 if (has_rmb and has_usd) else 0.5
+
+    if has_rmb and has_usd:
+        offsets_rmb = [i - bar_width / 2 for i in x_indices]
+        offsets_usd = [i + bar_width / 2 for i in x_indices]
+        ax1.bar(offsets_rmb, rmb_vals, width=bar_width, color="#e74c3c", alpha=0.85, label="RMB (¥)", zorder=3)
+        ax1.set_ylabel("¥ RMB", color="#e74c3c", fontsize=10)
+        ax1.tick_params(axis="y", labelcolor="#e74c3c", labelsize=9)
+        ax2 = ax1.twinx()
+        ax2.bar(offsets_usd, usd_vals, width=bar_width, color="#2196f3", alpha=0.85, label="USD ($)", zorder=3)
+        ax2.set_ylabel("$ USD", color="#2196f3", fontsize=10)
+        ax2.tick_params(axis="y", labelcolor="#2196f3", labelsize=9)
+        ax2.spines["top"].set_visible(False)
+    elif has_rmb:
+        ax1.bar(x_indices, rmb_vals, width=bar_width, color="#e74c3c", alpha=0.85, label="RMB (¥)", zorder=3)
+        ax1.set_ylabel("¥ RMB", color="#e74c3c", fontsize=10)
+        ax1.tick_params(axis="y", labelcolor="#e74c3c", labelsize=9)
+    else:
+        ax1.bar(x_indices, usd_vals, width=bar_width, color="#2196f3", alpha=0.85, label="USD ($)", zorder=3)
+        ax1.set_ylabel("$ USD", color="#2196f3", fontsize=10)
+        ax1.tick_params(axis="y", labelcolor="#2196f3", labelsize=9)
+
+    date_labels = [d.strftime("%m/%d") for d in dates]
+    ax1.set_xticks(list(x_indices))
+    ax1.set_xticklabels(date_labels, fontsize=8, rotation=45 if num_days > 7 else 0)
+    ax1.set_title(title, fontsize=13, fontweight="bold", color="#333", pad=10)
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False) if not (has_rmb and has_usd) else None
+    ax1.grid(axis="y", alpha=0.3, zorder=0)
+    ax1.set_axisbelow(True)
+
+    fig.tight_layout()
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return _b64.b64encode(buf.read()).decode("ascii")
+
+chart_7d = build_trend_chart(daily_by_provider, 7, "7-Day Cost Trend")
+chart_30d = build_trend_chart(daily_by_provider, 30, "30-Day Cost Trend")
+
+# ============================================================
 # 4. 辅助函数
 # ============================================================
 def fmt_tokens(n):
@@ -1288,6 +1365,8 @@ html = f"""<!DOCTYPE html>
                 border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
       📆 用量趋势
     </div>
+    {'<div style="margin-bottom:15px;"><img src="data:image/png;base64,' + chart_7d + '" style="width:100%;border-radius:8px;" /></div>' if chart_7d else ''}
+    {'<div style="margin-bottom:15px;"><img src="data:image/png;base64,' + chart_30d + '" style="width:100%;border-radius:8px;" /></div>' if chart_30d else ''}
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
       {trend_cards}
     </div>
