@@ -535,6 +535,8 @@ if new_jsonl_lines:
 import re as _re
 today_audio_files = {}   # url -> bytes (dedup)
 today_image_files = {}   # url -> bytes (dedup)
+# Classify image deliveries by source
+today_image_by_source = {}  # source_label -> {"count": N, "bytes": N}
 # Scan ALL gateway log files (not just UTC-today).  A long-running gateway
 # process writes to the log file it opened at startup, so today's (BJT)
 # entries may live in any older file.  The BJT filter below ensures only
@@ -572,6 +574,17 @@ for _today_log in sorted(glob.glob(f"{GATEWAY_LOG_DIR}/openclaw-*.log")):
                 elif kind == "image" and url and size > 0:
                     if url not in today_image_files:
                         today_image_files[url] = size
+                        # Classify by source
+                        if "/media/browser/" in url:
+                            src = "🌐 浏览器截图"
+                        elif "/tts-" in url:
+                            src = "🔊 TTS"  # unlikely but safe
+                        else:
+                            src = "🎨 图片生成"
+                        if src not in today_image_by_source:
+                            today_image_by_source[src] = {"count": 0, "bytes": 0}
+                        today_image_by_source[src]["count"] += 1
+                        today_image_by_source[src]["bytes"] += size
     except IOError:
         pass
 
@@ -586,6 +599,15 @@ audio_avg_bytes = audio_total_bytes // audio_count if audio_count > 0 else 0
 image_count = len(today_image_files)
 image_total_bytes = sum(today_image_files.values())
 image_avg_bytes = image_total_bytes // image_count if image_count > 0 else 0
+
+# Build image source breakdown string
+image_source_breakdown = ""
+if len(today_image_by_source) > 0:
+    parts = []
+    for src_label in sorted(today_image_by_source.keys()):
+        src_data = today_image_by_source[src_label]
+        parts.append(f'{src_label} {src_data["count"]}张 ({fmt_size(src_data["bytes"])})')
+    image_source_breakdown = " · ".join(parts)
 
 # Count audio/images actually generated today (from media_today, excludes re-sent old files)
 audio_generated_count = sum(d["calls"] for d in media_today.values()
@@ -1250,6 +1272,7 @@ html = f"""<!DOCTYPE html>
         <div style="font-size:12px;color:#666;margin-top:8px;">
           总大小 {fmt_size(image_total_bytes)} · 平均 {fmt_size(image_avg_bytes)}/张
         </div>
+        {f'<div style="font-size:11px;color:#888;margin-top:6px;">{image_source_breakdown}</div>' if image_source_breakdown else ''}
       </div>
       """}
     </div>
