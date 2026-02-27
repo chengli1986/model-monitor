@@ -530,20 +530,27 @@ if new_jsonl_lines:
         pass
 
 # ============================================================
-# 3c. 今日媒体投递统计 - 从 gateway 日志统计实际发送的音频/图片
+# 3c. 今日+昨日媒体投递统计 - 从 gateway 日志统计实际发送的音频/图片
 # ============================================================
 import re as _re
-today_audio_files = {}   # url -> bytes (dedup)
-today_image_files = {}   # url -> bytes (dedup)
-# Classify image deliveries by source
-today_image_by_source = {}  # source_label -> {"count": N, "bytes": N}
-# Scan ALL gateway log files (not just UTC-today).  A long-running gateway
-# process writes to the log file it opened at startup, so today's (BJT)
-# entries may live in any older file.  The BJT filter below ensures only
-# today's entries are counted — same approach as section 3b.
-for _today_log in sorted(glob.glob(f"{GATEWAY_LOG_DIR}/openclaw-*.log")):
+
+def fmt_size(b):
+    if b >= 1_048_576: return f"{b/1_048_576:.1f} MB"
+    if b >= 1024: return f"{b/1024:.1f} KB"
+    return f"{b} B"
+
+# Track delivery stats for both today and yesterday
+_delivery = {}  # { date_str: { "audio": {url: bytes}, "image": {url: bytes}, "image_by_source": {} } }
+for _ds in [today_str, yesterday_str]:
+    _delivery[_ds] = {"audio": {}, "image": {}, "image_by_source": {}}
+
+# Scan ALL gateway log files.  A long-running gateway process writes to the
+# log file it opened at startup, so today's/yesterday's (BJT) entries may
+# live in any older file.  The BJT filter below ensures only relevant
+# entries are counted — same approach as section 3b.
+for _log_file in sorted(glob.glob(f"{GATEWAY_LOG_DIR}/openclaw-*.log")):
     try:
-        with open(_today_log) as f:
+        with open(_log_file) as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -559,60 +566,75 @@ for _today_log in sorted(glob.glob(f"{GATEWAY_LOG_DIR}/openclaw-*.log")):
                 size = msg.get("mediaSizeBytes", 0)
                 kind = msg.get("mediaKind", "")
                 ts = obj.get("_meta", {}).get("date", "")
-                # Filter to today (BJT) — skip entries without timestamp
                 if not ts:
                     continue
                 try:
                     dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(BJT)
-                    if dt.strftime("%Y-%m-%d") != today_str:
-                        continue
+                    entry_date = dt.strftime("%Y-%m-%d")
                 except (ValueError, TypeError):
                     continue
+                if entry_date not in _delivery:
+                    continue
+                ds = _delivery[entry_date]
                 if kind == "audio" and url and size > 0:
-                    if url not in today_audio_files:
-                        today_audio_files[url] = size
+                    if url not in ds["audio"]:
+                        ds["audio"][url] = size
                 elif kind == "image" and url and size > 0:
-                    if url not in today_image_files:
-                        today_image_files[url] = size
-                        # Classify by source
+                    if url not in ds["image"]:
+                        ds["image"][url] = size
                         if "/media/browser/" in url:
                             src = "🌐 浏览器截图"
                         elif "/tts-" in url:
-                            src = "🔊 TTS"  # unlikely but safe
+                            src = "🔊 TTS"
                         else:
                             src = "🎨 图片生成"
-                        if src not in today_image_by_source:
-                            today_image_by_source[src] = {"count": 0, "bytes": 0}
-                        today_image_by_source[src]["count"] += 1
-                        today_image_by_source[src]["bytes"] += size
+                        if src not in ds["image_by_source"]:
+                            ds["image_by_source"][src] = {"count": 0, "bytes": 0}
+                        ds["image_by_source"][src]["count"] += 1
+                        ds["image_by_source"][src]["bytes"] += size
     except IOError:
         pass
 
-def fmt_size(b):
-    if b >= 1_048_576: return f"{b/1_048_576:.1f} MB"
-    if b >= 1024: return f"{b/1024:.1f} KB"
-    return f"{b} B"
+def _delivery_metrics(date_str):
+    """Extract delivery metrics for a given date."""
+    ds = _delivery.get(date_str, {"audio": {}, "image": {}, "image_by_source": {}})
+    a_count = len(ds["audio"]); a_total = sum(ds["audio"].values())
+    i_count = len(ds["image"]); i_total = sum(ds["image"].values())
+    breakdown = ""
+    if ds["image_by_source"]:
+        parts = []
+        for sl in sorted(ds["image_by_source"].keys()):
+            sd = ds["image_by_source"][sl]
+            parts.append(f'{sl} {sd["count"]}张 ({fmt_size(sd["bytes"])})')
+        breakdown = " · ".join(parts)
+    return {
+        "audio_count": a_count, "audio_total": a_total,
+        "audio_avg": a_total // a_count if a_count > 0 else 0,
+        "image_count": i_count, "image_total": i_total,
+        "image_avg": i_total // i_count if i_count > 0 else 0,
+        "image_breakdown": breakdown,
+    }
 
-audio_count = len(today_audio_files)
-audio_total_bytes = sum(today_audio_files.values())
-audio_avg_bytes = audio_total_bytes // audio_count if audio_count > 0 else 0
-image_count = len(today_image_files)
-image_total_bytes = sum(today_image_files.values())
-image_avg_bytes = image_total_bytes // image_count if image_count > 0 else 0
+today_dlv = _delivery_metrics(today_str)
+yest_dlv = _delivery_metrics(yesterday_str)
 
-# Build image source breakdown string
-image_source_breakdown = ""
-if len(today_image_by_source) > 0:
-    parts = []
-    for src_label in sorted(today_image_by_source.keys()):
-        src_data = today_image_by_source[src_label]
-        parts.append(f'{src_label} {src_data["count"]}张 ({fmt_size(src_data["bytes"])})')
-    image_source_breakdown = " · ".join(parts)
+# Shorthand for today (used in HTML template)
+audio_count = today_dlv["audio_count"]
+audio_total_bytes = today_dlv["audio_total"]
+audio_avg_bytes = today_dlv["audio_avg"]
+image_count = today_dlv["image_count"]
+image_total_bytes = today_dlv["image_total"]
+image_avg_bytes = today_dlv["image_avg"]
+image_source_breakdown = today_dlv["image_breakdown"]
 
-# Count audio/images actually generated today (from media_today, excludes re-sent old files)
+# Count audio/images actually generated today/yesterday (from media dicts)
 audio_generated_count = sum(d["calls"] for d in media_today.values()
                            if d.get("service") in ("tts", "tts-builtin"))
 image_generated_count = sum(d["calls"] for d in media_today.values()
+                           if d.get("service") in ("image", "image-builtin"))
+yest_audio_generated = sum(d["calls"] for d in media_yesterday.values()
+                           if d.get("service") in ("tts", "tts-builtin"))
+yest_image_generated = sum(d["calls"] for d in media_yesterday.values()
                            if d.get("service") in ("image", "image-builtin"))
 
 # Inject media costs into daily_by_provider for trend calculations
@@ -1327,29 +1349,48 @@ html = f"""<!DOCTYPE html>
       {'今日 $' + f'{media_today_usd:.4f}' if media_today_usd > 0 else '今日无调用'}
        · 累计 ${f'{media_alltime_usd:.4f}'} ({all_media_calls} 次)
     </div>
-    {"" if audio_count == 0 and image_count == 0 else f'''
+    {"" if audio_count == 0 and image_count == 0 and audio_generated_count == 0 and image_generated_count == 0 else f'''
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:15px;">
-      {"" if audio_count == 0 else f"""
+      {"" if audio_generated_count == 0 and audio_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #10a37f;">
         <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 今日语音</div>
         <div style="font-size:22px;font-weight:700;color:#333;">{audio_generated_count} <span style="font-size:14px;color:#999;">条生成</span>
-          {f' · {audio_count} <span style="font-size:14px;color:#999;">条投递</span>' if audio_count != audio_generated_count else ''}</div>
-        <div style="font-size:12px;color:#666;margin-top:8px;">
-          总大小 {fmt_size(audio_total_bytes)} · 平均 {fmt_size(audio_avg_bytes)}/条
-        </div>
+           · {audio_count} <span style="font-size:14px;color:#999;">条投递</span></div>
+        {"" if audio_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(audio_total_bytes)} · 平均 {fmt_size(audio_avg_bytes)}/条</div>'}
       </div>
       """}
-      {"" if image_count == 0 else f"""
+      {"" if image_generated_count == 0 and image_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #4285f4;">
         <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 今日图片</div>
         <div style="font-size:22px;font-weight:700;color:#333;">{image_generated_count} <span style="font-size:14px;color:#999;">张生成</span>
-          {f' · {image_count} <span style="font-size:14px;color:#999;">张投递</span>' if image_count != image_generated_count else ''}</div>
-        <div style="font-size:12px;color:#666;margin-top:8px;">
-          总大小 {fmt_size(image_total_bytes)} · 平均 {fmt_size(image_avg_bytes)}/张
-        </div>
+           · {image_count} <span style="font-size:14px;color:#999;">张投递</span></div>
+        {"" if image_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(image_total_bytes)} · 平均 {fmt_size(image_avg_bytes)}/张</div>'}
         {f'<div style="font-size:11px;color:#888;margin-top:6px;">{image_source_breakdown}</div>' if image_source_breakdown else ''}
+      </div>
+      """}
+    </div>
+    '''}
+    {"" if yest_audio_generated == 0 and yest_image_generated == 0 and yest_dlv["audio_count"] == 0 and yest_dlv["image_count"] == 0 else f'''
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+      {"" if yest_audio_generated == 0 and yest_dlv["audio_count"] == 0 else f"""
+      <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
+                  box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #81c784;">
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🔊 昨日语音</div>
+        <div style="font-size:18px;font-weight:700;color:#555;">{yest_audio_generated} <span style="font-size:13px;color:#999;">条生成</span>
+           · {yest_dlv["audio_count"]} <span style="font-size:13px;color:#999;">条投递</span></div>
+        {"" if yest_dlv["audio_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["audio_total"])} · 平均 {fmt_size(yest_dlv["audio_avg"])}/条</div>'}
+      </div>
+      """}
+      {"" if yest_image_generated == 0 and yest_dlv["image_count"] == 0 else f"""
+      <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
+                  box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #64b5f6;">
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🎨 昨日图片</div>
+        <div style="font-size:18px;font-weight:700;color:#555;">{yest_image_generated} <span style="font-size:13px;color:#999;">张生成</span>
+           · {yest_dlv["image_count"]} <span style="font-size:13px;color:#999;">张投递</span></div>
+        {"" if yest_dlv["image_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["image_total"])} · 平均 {fmt_size(yest_dlv["image_avg"])}/张</div>'}
+        {f'<div style="font-size:11px;color:#888;margin-top:4px;">{yest_dlv["image_breakdown"]}</div>' if yest_dlv["image_breakdown"] else ''}
       </div>
       """}
     </div>
