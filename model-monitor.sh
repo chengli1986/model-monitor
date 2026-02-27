@@ -1354,7 +1354,7 @@ html = f"""<!DOCTYPE html>
       {"" if audio_generated_count == 0 and audio_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #10a37f;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 今日语音</div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 今日语音 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
         <div style="font-size:22px;font-weight:700;color:#333;">{audio_generated_count} <span style="font-size:14px;color:#999;">条生成</span>
            · {audio_count} <span style="font-size:14px;color:#999;">条投递</span></div>
         {"" if audio_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(audio_total_bytes)} · 平均 {fmt_size(audio_avg_bytes)}/条</div>'}
@@ -1363,7 +1363,7 @@ html = f"""<!DOCTYPE html>
       {"" if image_generated_count == 0 and image_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #4285f4;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 今日图片</div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 今日图片 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
         <div style="font-size:22px;font-weight:700;color:#333;">{image_generated_count} <span style="font-size:14px;color:#999;">张生成</span>
            · {image_count} <span style="font-size:14px;color:#999;">张投递</span></div>
         {"" if image_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(image_total_bytes)} · 平均 {fmt_size(image_avg_bytes)}/张</div>'}
@@ -1377,7 +1377,7 @@ html = f"""<!DOCTYPE html>
       {"" if yest_audio_generated == 0 and yest_dlv["audio_count"] == 0 else f"""
       <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
                   box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #81c784;">
-        <div style="font-size:12px;color:#999;margin-bottom:4px;">🔊 昨日语音</div>
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🔊 昨日语音 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
         <div style="font-size:18px;font-weight:700;color:#555;">{yest_audio_generated} <span style="font-size:13px;color:#999;">条生成</span>
            · {yest_dlv["audio_count"]} <span style="font-size:13px;color:#999;">条投递</span></div>
         {"" if yest_dlv["audio_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["audio_total"])} · 平均 {fmt_size(yest_dlv["audio_avg"])}/条</div>'}
@@ -1386,7 +1386,7 @@ html = f"""<!DOCTYPE html>
       {"" if yest_image_generated == 0 and yest_dlv["image_count"] == 0 else f"""
       <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
                   box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #64b5f6;">
-        <div style="font-size:12px;color:#999;margin-bottom:4px;">🎨 昨日图片</div>
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🎨 昨日图片 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
         <div style="font-size:18px;font-weight:700;color:#555;">{yest_image_generated} <span style="font-size:13px;color:#999;">张生成</span>
            · {yest_dlv["image_count"]} <span style="font-size:13px;color:#999;">张投递</span></div>
         {"" if yest_dlv["image_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["image_total"])} · 平均 {fmt_size(yest_dlv["image_avg"])}/张</div>'}
