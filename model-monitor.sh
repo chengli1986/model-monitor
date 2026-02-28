@@ -1235,7 +1235,7 @@ pricing_rmb_section = build_pricing_section("💴 RMB 模型", pricing_rows_rmb)
 
 # --- 预计算历史累计区块 (避免 f-string 嵌套) ---
 th_hist = 'style="padding:10px 12px;text-align:left;color:white;font-weight:600;font-size:13px;"'
-hist_table_head = f"""<tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+hist_table_head = f"""<tr style="background-color:#667eea;background:linear-gradient(135deg,#667eea,#764ba2);">
           <th {th_hist}>厂商</th><th {th_hist}>模型</th><th {th_hist}>调用</th>
           <th {th_hist}>输入</th><th {th_hist}>输出</th><th {th_hist}>🧠思考</th><th {th_hist}>缓存读</th><th {th_hist}>费用</th>
         </tr>"""
@@ -1317,7 +1317,7 @@ html = f"""<!DOCTYPE html>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
       <thead>
-        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+        <tr style="background-color:#667eea;background:linear-gradient(135deg,#667eea,#764ba2);">
           <th {th}>厂商</th><th {th}>模型</th><th {th}>调用</th>
           <th {th}>输入</th><th {th}>输出</th><th {th}>🧠思考</th><th {th}>缓存读</th><th {th}>费用</th>
         </tr>
@@ -1337,7 +1337,7 @@ html = f"""<!DOCTYPE html>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
       <thead>
-        <tr style="background:linear-gradient(135deg,#667eea,#764ba2);">
+        <tr style="background-color:#667eea;background:linear-gradient(135deg,#667eea,#764ba2);">
           <th {th}>服务</th><th {th}>模型</th><th {th}>调用</th>
           <th {th}>用量</th><th {th}>费用</th>
         </tr>
@@ -1444,9 +1444,10 @@ html = f"""<!DOCTYPE html>
 print(html)
 PYEOF
 )
+PYTHON_EXIT=$?
 
-if [ -z "$HTML" ]; then
-    echo "[$NOW] ❌ HTML 生成失败" >> "$LOG_FILE"
+if [ $PYTHON_EXIT -ne 0 ] || [ -z "$HTML" ]; then
+    echo "[$NOW] ❌ HTML 生成失败 (python exit=$PYTHON_EXIT)" >> "$LOG_FILE"
     exit 1
 fi
 
@@ -1478,4 +1479,5 @@ if [ $SEND_RESULT -eq 0 ]; then
     echo "✅ AI模型监控报告已发送 - 北京时间 $NOW"
 else
     echo "❌ 邮件发送失败 - 北京时间 $NOW"
+    exit 1
 fi
