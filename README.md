@@ -334,6 +334,10 @@ print(f'Messages without id: {no_id}')
 - **Message deduplication**: A `seen_ids` set prevents double-counting when the same message appears across `.jsonl`, `.reset`, and `.bak` files.
 - **Timezone handling**: All JSONL timestamps are UTC; the script converts to Beijing Time (UTC+8) for date bucketing and display.
 
+## Development
+
+This repo includes a `.claude/CLAUDE.md` with repo-specific context for [Claude Code](https://claude.ai/claude-code) — cost calculation gotchas, JSONL timezone handling, matplotlib CJK limitations, model aliases, and dual-currency rules. Claude Code agents automatically load this context when working in the repo.
+
 ## License
 
 MIT
