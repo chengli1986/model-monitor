@@ -41,7 +41,7 @@ A sample HTML report is included at [`sample-report.html`](sample-report.html). 
 
 | Provider | Currency | Models |
 |----------|----------|--------|
-| OpenAI | USD | GPT-4.1, GPT-5-mini, GPT-5.2, TTS, etc. |
+| OpenAI | USD | GPT-4.1, GPT-5-mini, GPT-5.2, GPT-5.4, O3, O4-Mini, TTS |
 | Anthropic | USD | Claude Opus, Sonnet, Haiku |
 | Google | USD | Gemini 2.5 Flash/Pro, Imagen |
 | Moonshot | RMB | Kimi K2.5 |
