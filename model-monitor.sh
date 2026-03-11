@@ -1,5 +1,10 @@
 #!/bin/bash
-set -eo pipefail
+# Note: Do NOT add set -e here. The script captures $? from python3 heredoc
+# (line ~1448) and uses if/else for error handling. set -e would kill the script
+# before reaching the error handler (bug pattern #1: set -e + error handling = dead code).
+# Do NOT add set -u either — many variables may be unset in normal operation and
+# auditing every reference in this large script is not worth the risk.
+set -o pipefail
 # 全模型使用监控 - OpenAI / Anthropic / Moonshot
 # 每小时运行，扫描 JSONL 会话日志，按模型汇总 token 用量和费用
 # 生成 HTML 邮件报告
