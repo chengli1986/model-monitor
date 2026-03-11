@@ -1,8 +1,10 @@
 #!/bin/bash
 # Do NOT add set -u — many variables may be unset in normal operation and
 # auditing every reference in this large script is not worth the risk.
-# set -e is disabled around the python3 heredoc block so we can capture its exit code.
-set -eo pipefail
+# set -e intentionally NOT used — script has error handling that checks
+# $PYTHON_EXIT explicitly, and set -e would cause silent exits in
+# pre/post heredoc commands (bug pattern #1).
+set -o pipefail
 # 全模型使用监控 - OpenAI / Anthropic / Moonshot
 # 每小时运行，扫描 JSONL 会话日志，按模型汇总 token 用量和费用
 # 生成 HTML 邮件报告
@@ -19,7 +21,6 @@ TODAY_DATE=$(TZ="Asia/Shanghai" date '+%Y-%m-%d')
 # ============================================================
 # 用 Python 采集数据 + 生成 HTML
 # ============================================================
-set +e
 HTML=$(python3 << 'PYEOF'
 import json, glob, os, sys
 from datetime import datetime, timezone, timedelta
@@ -1450,7 +1451,6 @@ print(html)
 PYEOF
 )
 PYTHON_EXIT=$?
-set -e
 
 if [ $PYTHON_EXIT -ne 0 ] || [ -z "$HTML" ]; then
     echo "[$NOW] ❌ HTML 生成失败 (python exit=$PYTHON_EXIT)" >> "$LOG_FILE"
