@@ -96,7 +96,7 @@ The generated HTML email contains:
 └─────────────────────────┘
 ```
 
-- **Bash wrapper**: handles environment setup, email composition, and SMTP delivery via `curl`
+- **Bash wrapper**: handles environment setup, email composition, and SMTP delivery via `curl`; uses `set -eo pipefail` for proper error propagation
 - **Embedded Python**: performs all data scanning, cost calculation, deduplication, trend computation, and HTML generation
 
 ### image-digest.py
