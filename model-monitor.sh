@@ -32,12 +32,8 @@ THINKING_LOG = os.path.expanduser("~/.openclaw/logs/gemini-thinking-tokens.jsonl
 
 BJT = timezone(timedelta(hours=8))
 now_bjt = datetime.now(BJT)
-# Report runs at 00:15 BJT — treat "today" as the previous calendar day
-# so the report covers a full 24h period (e.g. run at 00:15 Mar 13 → today = Mar 12)
-if now_bjt.hour < 1:
-    today_str = (now_bjt - timedelta(days=1)).strftime("%Y-%m-%d")
-else:
-    today_str = now_bjt.strftime("%Y-%m-%d")
+# Report runs at 00:15 BJT — always report on yesterday's full-day usage
+today_str = (now_bjt - timedelta(days=1)).strftime("%Y-%m-%d")
 
 # ============================================================
 # 币种定义: RMB 厂商 vs USD 厂商
@@ -116,10 +112,7 @@ def add_to(d, key, inp, out, cache_r, cache_w, cost):
     d[key]["cost"] += cost
     d[key]["msgs"] += 1
 
-# yesterday is relative to the effective today_str
-from datetime import date as _date_cls
-_effective_today = datetime.strptime(today_str, "%Y-%m-%d").date()
-yesterday_str = (_effective_today - timedelta(days=1)).strftime("%Y-%m-%d")
+yesterday_str = (now_bjt - timedelta(days=2)).strftime("%Y-%m-%d")
 
 seen_ids = set()
 for fpath in all_files:
@@ -1006,7 +999,7 @@ def change_badge(pct):
     arrow = "↑" if pct > 0 else ("↓" if pct < 0 else "→")
     return f'<span style="color:{color};font-size:13px;font-weight:600;">{arrow} {abs(pct):.1f}%</span>'
 
-# 今日 vs 昨日 同比
+# 昨日 vs 前日 同比
 today_total_cost_rmb = today_rmb["cost"]
 today_total_cost_usd = today_usd["cost"]
 yest_total_cost_rmb = yest_rmb["cost"]
@@ -1031,12 +1024,12 @@ sub_style = 'style="font-size:12px;color:#666;margin-top:6px;"'
 
 trend_cards = f"""
     <div {card_style}>
-      <div {label_style}>📅 昨日 ({yesterday_str})</div>
+      <div {label_style}>📅 前日 ({yesterday_str})</div>
       <div {val_style}>{trend_cost_str({"rmb": yest_total_cost_rmb, "usd": yest_total_cost_usd})}</div>
       <div {sub_style}>{yest_total_msgs} 次调用</div>
     </div>
     <div {card_style}>
-      <div {label_style}>📊 今日 vs 昨日</div>
+      <div {label_style}>📊 昨日 vs 前日</div>
       <div {val_style}>
         {"¥ " + change_badge(vs_yest_rmb_pct) if yest_total_cost_rmb > 0 or today_total_cost_rmb > 0 else ""}
         {"&nbsp;&nbsp;$ " + change_badge(vs_yest_usd_pct) if yest_total_cost_usd > 0 or today_total_cost_usd > 0 else ""}
@@ -1080,7 +1073,7 @@ for key in sorted(today_by_model.keys(), key=lambda k: -today_by_model[k]["msgs"
       <td {td_mono_cost}>{fmt_cost(total_cost, sym)}</td>
     </tr>"""
 if not model_rows_today:
-    model_rows_today = '<tr><td colspan="8" style="padding:20px;text-align:center;color:#999;">今日暂无调用记录</td></tr>'
+    model_rows_today = '<tr><td colspan="8" style="padding:20px;text-align:center;color:#999;">昨日暂无调用记录</td></tr>'
 
 # --- 历史模型明细表 (按币种分组，费用降序) ---
 def build_alltime_rows(currency_filter):
@@ -1174,7 +1167,7 @@ pricing_rows_usd = build_pricing_rows(False)
 pricing_rows_rmb = build_pricing_rows(True)
 
 now_bj = now_bjt.strftime("%Y年%m月%d日 %H:%M")
-media_table_scope = "— 今日" if media_rows_today else "— 历史累计"
+media_table_scope = "— 昨日" if media_rows_today else "— 历史累计"
 
 # --- 预计算 Web Search 区块 (避免 f-string 嵌套) ---
 def build_web_search_section():
@@ -1198,13 +1191,13 @@ def build_web_search_section():
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
       <div style="flex:1;min-width:140px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #fb542b;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">今日搜索</div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">昨日搜索</div>
         <div style="font-size:22px;font-weight:700;color:#333;">{web_search_today} <span style="font-size:14px;color:#999;">次</span></div>
         <div style="font-size:12px;color:#666;margin-top:6px;">${web_search_today_cost:.3f}{avg_note}{error_note}</div>
       </div>
       <div style="flex:1;min-width:140px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #fb542b;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">昨日搜索</div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">前日搜索</div>
         <div style="font-size:22px;font-weight:700;color:#333;">{web_search_yesterday} <span style="font-size:14px;color:#999;">次</span></div>
         <div style="font-size:12px;color:#666;margin-top:6px;">${web_search_yesterday * BRAVE_COST_PER_QUERY:.3f}</div>
       </div>
@@ -1307,10 +1300,10 @@ html = f"""<!DOCTYPE html>
                 display:inline-block;padding:8px 22px;border-radius:20px;">{now_bj} 北京时间</div>
   </div>
 
-  <!-- 今日费用总览 - 双币种 -->
+  <!-- 昨日费用总览 - 双币种 -->
   <div style="padding:25px 30px;">
     <div style="text-align:center;margin-bottom:20px;">
-      <div style="font-size:14px;color:#666;margin-bottom:12px;">今日费用 ({today_str})</div>
+      <div style="font-size:14px;color:#666;margin-bottom:12px;">昨日费用 ({today_str})</div>
       <div style="margin:10px 0;">{cost_badge(today_rmb, today_usd, "today")}</div>
       <div style="font-size:13px;color:#999;margin-top:10px;">
         {today_total_msgs} 次调用 · {fmt_tokens(today_total_input)} 输入 · {fmt_tokens(today_total_output)} 输出
@@ -1321,11 +1314,11 @@ html = f"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- 今日按模型明细 -->
+  <!-- 昨日按模型明细 -->
   <div style="padding:0 30px 25px;">
     <div style="font-size:16px;color:#302b63;font-weight:600;
                 border-bottom:2px solid #667eea;padding-bottom:10px;margin-bottom:15px;">
-      📊 今日按模型明细
+      📊 昨日按模型明细
     </div>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
@@ -1359,7 +1352,7 @@ html = f"""<!DOCTYPE html>
     </table>
     </div>
     <div style="font-size:11px;color:#999;margin-top:8px;text-align:right;">
-      {'今日 $' + f'{media_today_usd:.4f}' if media_today_usd > 0 else '今日无调用'}
+      {'昨日 $' + f'{media_today_usd:.4f}' if media_today_usd > 0 else '昨日无调用'}
        · 累计 ${f'{media_alltime_usd:.4f}'} ({all_media_calls} 次)
     </div>
     {"" if audio_count == 0 and image_count == 0 and audio_generated_count == 0 and image_generated_count == 0 else f'''
@@ -1367,7 +1360,7 @@ html = f"""<!DOCTYPE html>
       {"" if audio_generated_count == 0 and audio_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #10a37f;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 今日语音 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🔊 昨日语音 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
         <div style="font-size:22px;font-weight:700;color:#333;">{audio_generated_count} <span style="font-size:14px;color:#999;">条生成</span>
            · {audio_count} <span style="font-size:14px;color:#999;">条投递</span></div>
         {"" if audio_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(audio_total_bytes)} · 平均 {fmt_size(audio_avg_bytes)}/条</div>'}
@@ -1376,7 +1369,7 @@ html = f"""<!DOCTYPE html>
       {"" if image_generated_count == 0 and image_count == 0 else f"""
       <div style="flex:1;min-width:200px;background:white;border-radius:12px;padding:16px;
                   box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #4285f4;">
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 今日图片 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">🎨 昨日图片 <span style="font-size:11px;color:#aaa;">({today_str})</span></div>
         <div style="font-size:22px;font-weight:700;color:#333;">{image_generated_count} <span style="font-size:14px;color:#999;">张生成</span>
            · {image_count} <span style="font-size:14px;color:#999;">张投递</span></div>
         {"" if image_count == 0 else f'<div style="font-size:12px;color:#666;margin-top:8px;">投递 {fmt_size(image_total_bytes)} · 平均 {fmt_size(image_avg_bytes)}/张</div>'}
@@ -1390,7 +1383,7 @@ html = f"""<!DOCTYPE html>
       {"" if yest_audio_generated == 0 and yest_dlv["audio_count"] == 0 else f"""
       <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
                   box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #81c784;">
-        <div style="font-size:12px;color:#999;margin-bottom:4px;">🔊 昨日语音 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🔊 前日语音 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
         <div style="font-size:18px;font-weight:700;color:#555;">{yest_audio_generated} <span style="font-size:13px;color:#999;">条生成</span>
            · {yest_dlv["audio_count"]} <span style="font-size:13px;color:#999;">条投递</span></div>
         {"" if yest_dlv["audio_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["audio_total"])} · 平均 {fmt_size(yest_dlv["audio_avg"])}/条</div>'}
@@ -1399,7 +1392,7 @@ html = f"""<!DOCTYPE html>
       {"" if yest_image_generated == 0 and yest_dlv["image_count"] == 0 else f"""
       <div style="flex:1;min-width:200px;background:#fafafa;border-radius:12px;padding:14px;
                   box-shadow:0 1px 4px rgba(0,0,0,.05);border-left:4px solid #64b5f6;">
-        <div style="font-size:12px;color:#999;margin-bottom:4px;">🎨 昨日图片 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">🎨 前日图片 <span style="font-size:11px;color:#bbb;">({yesterday_str})</span></div>
         <div style="font-size:18px;font-weight:700;color:#555;">{yest_image_generated} <span style="font-size:13px;color:#999;">张生成</span>
            · {yest_dlv["image_count"]} <span style="font-size:13px;color:#999;">张投递</span></div>
         {"" if yest_dlv["image_count"] == 0 else f'<div style="font-size:11px;color:#888;margin-top:6px;">投递 {fmt_size(yest_dlv["image_total"])} · 平均 {fmt_size(yest_dlv["image_avg"])}/张</div>'}
@@ -1469,8 +1462,8 @@ fi
 # ============================================================
 MAIL_FILE=$(mktemp)
 trap "rm -f '$MAIL_FILE'" EXIT
-DATE_LABEL=$(TZ='Asia/Shanghai' date '+%m月%d日 %H:%M')
-SUBJECT=$(echo -n "🤖 AI模型监控 - ${DATE_LABEL}" | base64 -w 0)
+YESTERDAY_BJT=$(TZ='Asia/Shanghai' date -d 'yesterday' '+%Y-%m-%d')
+SUBJECT=$(echo -n "🤖 AI模型监控 - ${YESTERDAY_BJT} 昨日回顾" | base64 -w 0)
 
 printf "From: \"AI模型监控\" <%s>\r\nTo: %s\r\nSubject: =?UTF-8?B?%s?=\r\nContent-Type: text/html; charset=UTF-8\r\nMIME-Version: 1.0\r\n\r\n%s" \
     "$SMTP_USER" "$MAIL_TO" "$SUBJECT" "$HTML" > "$MAIL_FILE"
