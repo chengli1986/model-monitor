@@ -32,7 +32,12 @@ THINKING_LOG = os.path.expanduser("~/.openclaw/logs/gemini-thinking-tokens.jsonl
 
 BJT = timezone(timedelta(hours=8))
 now_bjt = datetime.now(BJT)
-today_str = now_bjt.strftime("%Y-%m-%d")
+# Report runs at 00:15 BJT — treat "today" as the previous calendar day
+# so the report covers a full 24h period (e.g. run at 00:15 Mar 13 → today = Mar 12)
+if now_bjt.hour < 1:
+    today_str = (now_bjt - timedelta(days=1)).strftime("%Y-%m-%d")
+else:
+    today_str = now_bjt.strftime("%Y-%m-%d")
 
 # ============================================================
 # 币种定义: RMB 厂商 vs USD 厂商
@@ -111,8 +116,10 @@ def add_to(d, key, inp, out, cache_r, cache_w, cost):
     d[key]["cost"] += cost
     d[key]["msgs"] += 1
 
-yesterday_dt = now_bjt - timedelta(days=1)
-yesterday_str = yesterday_dt.strftime("%Y-%m-%d")
+# yesterday is relative to the effective today_str
+from datetime import date as _date_cls
+_effective_today = datetime.strptime(today_str, "%Y-%m-%d").date()
+yesterday_str = (_effective_today - timedelta(days=1)).strftime("%Y-%m-%d")
 
 seen_ids = set()
 for fpath in all_files:
