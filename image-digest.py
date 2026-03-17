@@ -21,11 +21,11 @@ LOG_FILE = os.path.expanduser("~/logs/image-digest.log")
 GATEWAY_LOG_DIR = "/tmp/openclaw"
 MEDIA_LOG = os.path.expanduser("~/.openclaw/logs/media-usage.jsonl")
 BJT = timezone(timedelta(hours=8))
-ENV_FILE = os.path.expanduser("~/.stock-monitor.env")
+ENV_FILE = os.path.expanduser("~/.smtp.env")
 
 
 def load_env():
-    """Load SMTP credentials from .stock-monitor.env."""
+    """Load SMTP credentials from .smtp.env."""
     env = {}
     try:
         with open(ENV_FILE) as f:
@@ -418,7 +418,7 @@ def main():
     mail_to = env.get("MAIL_TO", "")
 
     if not all([smtp_user, smtp_pass, mail_to]):
-        log("ERROR: Missing SMTP credentials in .stock-monitor.env")
+        log("ERROR: Missing SMTP credentials in .smtp.env")
         sys.exit(1)
 
     # Target date: today in BJT (when run at midnight, this covers the day that just ended)
@@ -467,7 +467,7 @@ def main():
     msg["To"] = mail_to
 
     try:
-        with smtplib.SMTP_SSL("smtp.163.com", 465, timeout=30) as server:
+        with smtplib.SMTP_SSL(env.get("SMTP_SERVER", "smtp.163.com"), int(env.get("SMTP_PORT", "465")), timeout=30) as server:
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_user, mail_to, msg.as_string())
         log(f"OK: Sent {count} images for {target}")
