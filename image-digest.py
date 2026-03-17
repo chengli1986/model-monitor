@@ -467,7 +467,11 @@ def main():
     msg["To"] = mail_to
 
     try:
-        with smtplib.SMTP_SSL(env.get("SMTP_SERVER", "smtp.163.com"), int(env.get("SMTP_PORT", "465")), timeout=30) as server:
+        try:
+            smtp_port = int(env.get("SMTP_PORT", "465"))
+        except ValueError:
+            smtp_port = 465
+        with smtplib.SMTP_SSL(env.get("SMTP_SERVER", "smtp.163.com"), smtp_port, timeout=30) as server:
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_user, mail_to, msg.as_string())
         log(f"OK: Sent {count} images for {target}")
