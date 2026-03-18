@@ -1468,18 +1468,22 @@ SUBJECT=$(echo -n "🤖 AI模型监控 - ${YESTERDAY_BJT} 昨日回顾" | base64
 printf "From: \"AI模型监控\" <%s>\r\nTo: %s\r\nSubject: =?UTF-8?B?%s?=\r\nContent-Type: text/html; charset=UTF-8\r\nMIME-Version: 1.0\r\n\r\n%s" \
     "$SMTP_USER" "$MAIL_TO" "$SUBJECT" "$HTML" > "$MAIL_FILE"
 
-RCPT_ARGS=""
+RCPT_ARGS=()
 IFS=',' read -ra RCPTS <<< "$MAIL_TO"
 for rcpt in "${RCPTS[@]}"; do
     rcpt=$(echo "$rcpt" | xargs)
-    [ -n "$rcpt" ] && RCPT_ARGS="$RCPT_ARGS --mail-rcpt $rcpt"
+    [ -n "$rcpt" ] && RCPT_ARGS+=(--mail-rcpt "$rcpt")
 done
+if [ ${#RCPT_ARGS[@]} -eq 0 ]; then
+    echo "❌ Error: MAIL_TO is empty, no recipients specified" >&2
+    exit 1
+fi
 CURL_OUTPUT=$(curl --silent --ssl-reqd \
     --max-time 30 \
     --url "smtps://smtp.163.com:465" \
     --user "$SMTP_USER:$SMTP_PASS" \
     --mail-from "$SMTP_USER" \
-    $RCPT_ARGS \
+    "${RCPT_ARGS[@]}" \
     --upload-file "$MAIL_FILE" 2>&1)
 
 SEND_RESULT=$?
