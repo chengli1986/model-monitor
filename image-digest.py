@@ -415,9 +415,10 @@ def main():
     env = load_env()
     smtp_user = env.get("SMTP_USER", "")
     smtp_pass = env.get("SMTP_PASS", "")
-    mail_to = env.get("MAIL_TO", "")
+    mail_to_raw = env.get("MAIL_TO", "")
+    recipients = [r.strip() for r in mail_to_raw.split(",") if r.strip()]
 
-    if not all([smtp_user, smtp_pass, mail_to]):
+    if not all([smtp_user, smtp_pass, recipients]):
         log("ERROR: Missing SMTP credentials in .smtp.env")
         sys.exit(1)
 
@@ -464,7 +465,7 @@ def main():
 
     msg, count = result
     msg["From"] = smtp_user
-    msg["To"] = mail_to
+    msg["To"] = ", ".join(recipients)
 
     try:
         try:
@@ -473,7 +474,7 @@ def main():
             smtp_port = 465
         with smtplib.SMTP_SSL(env.get("SMTP_SERVER", "smtp.163.com"), smtp_port, timeout=30) as server:
             server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, mail_to, msg.as_string())
+            server.sendmail(smtp_user, recipients, msg.as_string())
         log(f"OK: Sent {count} images for {target}")
         print(f"Sent digest with {count} images for {target}")
     except Exception as e:
