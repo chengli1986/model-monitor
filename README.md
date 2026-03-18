@@ -129,7 +129,7 @@ Sourced from `~/.stock-monitor.env`:
 |----------|-------------|
 | `SMTP_USER` | SMTP sender email address |
 | `SMTP_PASS` | SMTP password or app-specific password |
-| `MAIL_TO` | Recipient email address |
+| `MAIL_TO` | Recipient email address(es), comma-separated for multiple recipients |
 
 ### Model Pricing
 
