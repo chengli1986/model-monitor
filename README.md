@@ -60,6 +60,12 @@ A sample HTML report is included at [`sample-report.html`](sample-report.html). 
 - Tracks both skill-script media (logged to `media-usage.jsonl`) and built-in gateway tool calls (parsed from gateway debug logs)
 - Built-in tool usage is automatically persisted to `media-usage.jsonl` so alltime counts survive log rotation
 
+### Persistent Cost Ledger
+- Historical alltime totals are stored in `~/.openclaw/logs/cost-ledger.json`
+- Survives JSONL session file rotation — alltime costs are never lost when session logs are cleaned up
+- Media and thinking costs are merged into `daily_by_provider` before ledger save to prevent double-counting
+- The "历史累计" section title shows the ledger start date for transparency
+
 ### Trend Analysis
 - Today vs. yesterday comparison with percentage change badges
 - Rolling 7-day and 30-day totals with week-over-week / month-over-month deltas
@@ -202,6 +208,7 @@ python3 image-digest.py
 | `~/.openclaw/logs/media-usage.jsonl` | TTS and image generation usage log |
 | `/tmp/openclaw/openclaw-*.log` | Gateway debug logs (built-in tool detection) |
 | `~/.openclaw/openclaw.json` | Master config with model pricing |
+| `~/.openclaw/logs/cost-ledger.json` | Persistent alltime cost totals (survives JSONL rotation) |
 | `~/logs/model-monitor.log` | model-monitor.sh execution log |
 | `~/logs/image-digest.log` | image-digest.py execution log |
 
@@ -331,6 +338,7 @@ print(f'Messages without id: {no_id}')
 
 - **Ignores JSONL `usage.cost.total`**: The gateway-reported cost field has a systematic 1000x undercount (unit interpretation bug). Costs are always calculated independently from token counts and config pricing.
 - **Triple-source media tracking**: Media API usage is captured from (1) script-logged `media-usage.jsonl`, (2) gateway debug logs for built-in tools, and (3) gateway delivery logs for actual WhatsApp send stats. Built-in tool entries are persisted back to `media-usage.jsonl` for durability.
+- **Persistent cost ledger**: Alltime totals are saved to `cost-ledger.json` so historical costs survive when JSONL session files are rotated or cleaned up. Media and thinking costs are merged into `daily_by_provider` before ledger save to prevent double-counting.
 - **Message deduplication**: A `seen_ids` set prevents double-counting when the same message appears across `.jsonl`, `.reset`, and `.bak` files.
 - **Timezone handling**: All JSONL timestamps are UTC; the script converts to Beijing Time (UTC+8) for date bucketing and display.
 
