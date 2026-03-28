@@ -893,6 +893,68 @@ def prov_info(p):
     return PROVIDER_DISPLAY.get(p, (p.title(), "#666", "⚪"))
 
 # ============================================================
+# 4b. 持久化每日费用账本 — JSONL 会被轮转清理，账本永久保留
+# ============================================================
+COST_LEDGER = os.path.expanduser("~/.openclaw/logs/cost-ledger.json")
+
+def load_ledger():
+    if os.path.isfile(COST_LEDGER):
+        try:
+            with open(COST_LEDGER) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+def save_ledger(ledger):
+    try:
+        os.makedirs(os.path.dirname(COST_LEDGER), exist_ok=True)
+        with open(COST_LEDGER, "w") as f:
+            json.dump(ledger, f, ensure_ascii=False, indent=1)
+    except OSError as e:
+        print(f"Warning: failed to save cost ledger: {e}", file=sys.stderr)
+
+# Merge media daily costs into daily_by_provider
+for d_str, media_entries in media_daily.items():
+    if d_str not in daily_by_provider:
+        daily_by_provider[d_str] = {}
+    dp = daily_by_provider[d_str]
+    media_day_cost = sum(v["cost"] for v in media_entries.values())
+    media_day_calls = sum(v["calls"] for v in media_entries.values())
+    if "_media_api" not in dp:
+        dp["_media_api"] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0, "msgs": 0}
+    dp["_media_api"]["cost"] += media_day_cost
+    dp["_media_api"]["msgs"] += media_day_calls
+
+# Load ledger, merge current JSONL data (overwrite days we have fresh data for)
+ledger = load_ledger()
+for d_str, providers in daily_by_provider.items():
+    ledger[d_str] = {}
+    for prov, data in providers.items():
+        ledger[d_str][prov] = {
+            "cost": round(data["cost"], 6),
+            "msgs": data["msgs"],
+            "input": data["input"],
+            "output": data["output"],
+        }
+save_ledger(ledger)
+
+# Rebuild alltime totals from ledger (covers all historical data)
+alltime_by_provider = {}
+for d_str, providers in ledger.items():
+    for prov, data in providers.items():
+        if prov not in alltime_by_provider:
+            alltime_by_provider[prov] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 0.0, "msgs": 0}
+        alltime_by_provider[prov]["input"] += data.get("input", 0)
+        alltime_by_provider[prov]["output"] += data.get("output", 0)
+        alltime_by_provider[prov]["cost"] += data.get("cost", 0)
+        alltime_by_provider[prov]["msgs"] += data.get("msgs", 0)
+
+# Also rebuild alltime model breakdown from ledger is not feasible (ledger is provider-level),
+# but alltime_by_model from JSONL scan is still used for the detail table.
+# The alltime_by_provider totals are now persistent and won't lose data.
+
+# ============================================================
 # 5. 计算双币种汇总
 # ============================================================
 def sum_by_currency(by_provider, scope="today"):
@@ -910,21 +972,19 @@ def sum_by_currency(by_provider, scope="today"):
 today_rmb, today_usd = sum_by_currency(today_by_provider)
 yest_rmb, yest_usd = sum_by_currency(yesterday_by_provider)
 all_rmb, all_usd = sum_by_currency(alltime_by_provider)
-# Include off-gateway media API costs in USD totals
+# alltime media+thinking costs are already in ledger via _media_api/_thinking keys.
+# Only add today/yesterday media costs (not yet in ledger-derived alltime).
 today_usd["cost"] += media_today_usd
 today_media_calls = sum(d["calls"] for d in media_today.values())
 today_usd["msgs"] += today_media_calls
-all_usd["cost"] += media_alltime_usd
-all_media_calls = sum(d["calls"] for d in media_alltime.values())
-all_usd["msgs"] += all_media_calls
 yest_media_usd = sum(d["cost"] for d in media_yesterday.values())
 yest_media_calls = sum(d["calls"] for d in media_yesterday.values())
 yest_usd["cost"] += yest_media_usd
 yest_usd["msgs"] += yest_media_calls
-# Include Gemini thinking token costs in USD totals
+# Include Gemini thinking token costs in today/yesterday USD totals
+# (alltime thinking costs already in ledger via _thinking key)
 today_usd["cost"] += thinking_cost_today_usd
 yest_usd["cost"] += thinking_cost_yesterday_usd
-all_usd["cost"] += thinking_cost_alltime_usd
 today_total_msgs = today_rmb["msgs"] + today_usd["msgs"]
 today_total_input = today_rmb["input"] + today_usd["input"]
 today_total_output = today_rmb["output"] + today_usd["output"]
@@ -1263,11 +1323,13 @@ def build_history_section(title, rows, total_msgs, total_cost_str):
     </div>
   </div>"""
 
+ledger_dates = sorted(ledger.keys()) if ledger else []
+ledger_range = f" · {ledger_dates[0]} 起" if ledger_dates else ""
 history_usd_section = build_history_section(
-    "历史累计 · USD", model_rows_all_usd,
+    f"历史累计 · USD{ledger_range}", model_rows_all_usd,
     all_usd["msgs"], f"${all_usd['cost']:.4f}")
 history_rmb_section = build_history_section(
-    "历史累计 · RMB", model_rows_all_rmb,
+    f"历史累计 · RMB{ledger_range}", model_rows_all_rmb,
     all_rmb["msgs"], f"¥{all_rmb['cost']:.2f}")
 
 # --- 费用总览区块 ---
