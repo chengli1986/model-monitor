@@ -926,6 +926,15 @@ for d_str, media_entries in media_daily.items():
     dp["_media_api"]["cost"] += media_day_cost
     dp["_media_api"]["msgs"] += media_day_calls
 
+# Merge thinking daily costs into daily_by_provider
+for d_str, think_cost in [(today_str, thinking_cost_today_usd), (yesterday_str, thinking_cost_yesterday_usd)]:
+    if think_cost <= 0:
+        continue
+    if d_str not in daily_by_provider:
+        daily_by_provider[d_str] = {}
+    dp = daily_by_provider[d_str]
+    dp["_thinking"] = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "cost": think_cost, "msgs": 0}
+
 # Load ledger, merge current JSONL data (overwrite days we have fresh data for)
 ledger = load_ledger()
 for d_str, providers in daily_by_provider.items():
