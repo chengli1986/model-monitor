@@ -72,8 +72,8 @@ try:
                     "context": m.get("contextWindow", 0),
                     "provider": prov_id,
                 }
-except Exception:
-    pass
+except Exception as e:
+    import sys; print(f"⚠️  Warning: failed to load config {CONFIG_FILE}: {e}", file=sys.stderr)
 
 # ============================================================
 # 3. 扫描 JSONL - 按模型 & 币种汇总
