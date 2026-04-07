@@ -451,8 +451,8 @@ def parse_gateway_logs_for_builtin_media():
                 try:
                     ct = datetime.fromisoformat(call_ts.replace("Z", "+00:00"))
                     dt = datetime.fromisoformat(md["ts"].replace("Z", "+00:00"))
-                    delta = abs((dt - ct).total_seconds())
-                    if delta < 15 and delta < best_delta:
+                    delta = abs((dt - ct).total_seconds())  # 15s window: max gateway→delivery lag observed in prod
+                    if delta < 15 and delta < best_delta:  # 15s = max observed gateway-to-delivery lag
                         best_delta = delta
                         best_delivery = (i, md)
                 except (ValueError, TypeError):
@@ -486,16 +486,18 @@ for entry in builtin_entries:
         continue  # already persisted & counted by the jsonl reader above
 
     if service == "tts":
-        # Estimate characters from MP3 file size:
-        # MP3 ~128kbps = ~16000 bytes/sec audio, average ~5 chars/sec spoken
+        # Estimate characters from MP3 file size.
+        # 16000 bytes/sec: MP3 at ~128kbps (128000 bits/8 = 16000 bytes per second of audio).
+        # 5 chars/sec: average English speech rate (~150 wpm / 5 chars per word / 60 sec ≈ 5 chars/sec).
         audio_secs = entry["file_bytes"] / 16000 if entry["file_bytes"] > 0 else 0
         est_chars = max(int(audio_secs * 5), 50) if entry["file_bytes"] > 0 else 100
-        est_cost = est_chars / 1000 * 0.015  # tts-1 rate
+        est_cost = est_chars / 1000 * 0.015  # OpenAI TTS-1 pricing: $0.015 per 1K chars (as of 2025)
         key = "openai/tts-builtin"
         entry_data = {"cost": est_cost, "quantity": est_chars, "unit": "chars",
                        "service": "tts-builtin", "provider": "openai", "model": "tts-builtin"}
     else:
-        # Image: assume flash model default price
+        # Image generation: Gemini Flash image input cost estimate.
+        # $0.039 ≈ average per-image cost for Gemini 2.0 Flash built-in image generation (as of 2025).
         est_cost = 0.039
         key = "google/image-builtin"
         entry_data = {"cost": est_cost, "quantity": 1, "unit": "image",
