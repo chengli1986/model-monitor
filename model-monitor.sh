@@ -14,6 +14,10 @@ mkdir -p /home/ubuntu/logs
 
 source ~/.stock-monitor.env
 
+# SMTP defaults — can be overridden via environment
+SMTP_SERVER="${SMTP_SERVER:-smtp.163.com}"
+SMTP_PORT="${SMTP_PORT:-465}"
+
 NOW_UTC=$(date '+%Y-%m-%d %H:%M:%S')
 NOW=$(TZ="Asia/Shanghai" date '+%Y-%m-%d %H:%M:%S')
 TODAY_DATE=$(TZ="Asia/Shanghai" date '+%Y-%m-%d')
@@ -1551,7 +1555,7 @@ if [ ${#RCPT_ARGS[@]} -eq 0 ]; then
 fi
 CURL_OUTPUT=$(curl --silent --ssl-reqd \
     --max-time 30 \
-    --url "smtps://smtp.163.com:465" \
+    --url "smtps://${SMTP_SERVER}:${SMTP_PORT}" \
     --user "$SMTP_USER:$SMTP_PASS" \
     --mail-from "$SMTP_USER" \
     "${RCPT_ARGS[@]}" \
