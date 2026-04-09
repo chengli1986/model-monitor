@@ -991,6 +991,7 @@ all_rmb, all_usd = sum_by_currency(alltime_by_provider)
 # Only add today/yesterday media costs (not yet in ledger-derived alltime).
 today_usd["cost"] += media_today_usd
 today_media_calls = sum(d["calls"] for d in media_today.values())
+all_media_calls = sum(d["calls"] for d in media_alltime.values())
 today_usd["msgs"] += today_media_calls
 yest_media_usd = sum(d["cost"] for d in media_yesterday.values())
 yest_media_calls = sum(d["calls"] for d in media_yesterday.values())
