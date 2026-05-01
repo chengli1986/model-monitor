@@ -216,13 +216,19 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
         if os.path.isfile(path):
             valid.append(entry)
 
-    if not valid:
+    ml_total_count = media_log_data["script"] + media_log_data["builtin"]
+
+    # Bail only when both delivery channel AND media-usage.jsonl have nothing.
+    # Generation-only days (image generated locally, never WhatsApp-delivered)
+    # still produce an email — pre-2026-05-02 behaviour silently dropped them.
+    if not valid and ml_total_count == 0:
         return None
 
     total_bytes = sum(e["bytes"] for e in valid)
-    avg_bytes = total_bytes // len(valid)
+    avg_bytes = (total_bytes // len(valid)) if valid else 0
 
-    # Build HTML
+    # Build image grid (delivered images only — generation-only entries have no
+    # cross-referenced file path in media-usage.jsonl, so no inline thumbnail).
     grid_items = ""
     for i, entry in enumerate(valid):
         fname = os.path.basename(entry["url"])
@@ -234,6 +240,13 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
                box-shadow:0 2px 8px rgba(0,0,0,.15);display:block;margin:0 auto;" />
           <div style="font-size:11px;color:#666;margin-top:6px;word-break:break-all;">{fname}</div>
           <div style="font-size:10px;color:#999;">{ts_str} &middot; {fmt_size(entry['bytes'])}</div>
+        </div>"""
+
+    if not valid and ml_total_count > 0:
+        grid_items = f"""
+        <div style="padding:24px;background:#fff8e1;border-radius:10px;color:#7a5d00;font-size:13px;line-height:1.6;text-align:left;">
+          📁 今日 <strong>{ml_total_count}</strong> 张图本地生成但未通过 WhatsApp/邮件投递（可能是即时查看后留存于 <code>~/.openclaw/workspace/</code>）。<br>
+          以下是 <strong>media-usage.jsonl</strong> 中记录的费用 / 模型 / 分辨率明细，缩略图无法附带（生成事件不携带交付路径）。
         </div>"""
 
     # --- Cross-check: classify deliveries as new vs re-send ---
@@ -348,12 +361,12 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
   <div style="padding:20px 24px;">
     <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
       <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:#333;">{new_count}</div>
-        <div style="font-size:12px;color:#999;">新生成</div>
+        <div style="font-size:28px;font-weight:700;color:#333;">{ml_total}</div>
+        <div style="font-size:12px;color:#999;">今日生成</div>
       </div>
       <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
-        <div style="font-size:28px;font-weight:700;color:{('#666' if resend_count > 0 else '#ccc')};">{resend_count}</div>
-        <div style="font-size:12px;color:#999;">重发</div>
+        <div style="font-size:28px;font-weight:700;color:#333;">{on_disk}</div>
+        <div style="font-size:12px;color:#999;">已投递</div>
       </div>
       <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
         <div style="font-size:28px;font-weight:700;color:#333;">{fmt_size(total_bytes)}</div>
@@ -381,7 +394,14 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
 
     # Build MIME message
     msg = MIMEMultipart("related")
-    msg["Subject"] = Header(f"🎨 今日图片汇总 - {target_date_str} ({len(valid)} 张)", "utf-8")
+    delivered_n = len(valid)
+    if delivered_n == 0 and ml_total_count > 0:
+        subject_suffix = f"({ml_total_count} 张生成 · 0 投递)"
+    elif ml_total_count > delivered_n:
+        subject_suffix = f"({delivered_n} 投递 · {ml_total_count} 生成)"
+    else:
+        subject_suffix = f"({delivered_n} 张)"
+    msg["Subject"] = Header(f"🎨 今日图片汇总 - {target_date_str} {subject_suffix}", "utf-8")
 
     html_part = MIMEText(html, "html", "utf-8")
     msg.attach(html_part)
@@ -452,15 +472,15 @@ def main():
     if resend_list:
         print(f"  Re-sent old: {', '.join(os.path.basename(e['url']) for e in resend_list)}")
 
-    if not entries:
-        log(f"No images found for {target}")
-        print("No images found. Skipping email.")
+    if not entries and ml_total == 0:
+        log(f"No images found for {target} (gateway delivered=0, media-usage generated=0)")
+        print("No images. Skipping email.")
         return
 
     result = build_email(target, entries, media_log_data, total_sends)
     if result is None:
-        log(f"No image files still on disk for {target}")
-        print("No image files on disk. Skipping email.")
+        log(f"No deliverable content for {target}")
+        print("No deliverable content. Skipping email.")
         return
 
     msg, count = result
