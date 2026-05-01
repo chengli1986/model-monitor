@@ -81,7 +81,8 @@ except Exception as e:
 all_files = sorted(
     glob.glob(f"{SESSION_DIR}/*.jsonl") +
     glob.glob(f"{SESSION_DIR}/*.jsonl.reset.*") +
-    glob.glob(f"{SESSION_DIR}/*.jsonl.bak.*")
+    glob.glob(f"{SESSION_DIR}/*.jsonl.bak.*") +
+    glob.glob(f"{SESSION_DIR}/*.jsonl.deleted.*")
 )
 
 # --- 数据容器 ---
