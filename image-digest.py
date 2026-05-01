@@ -23,6 +23,55 @@ MEDIA_LOG = os.path.expanduser("~/.openclaw/logs/media-usage.jsonl")
 BJT = timezone(timedelta(hours=8))
 ENV_FILE = os.path.expanduser("~/.smtp.env")
 
+# Anomaly detector — tracks consecutive days where images were generated
+# (media-usage.jsonl) but NONE were delivered (gateway log empty). This
+# pattern indicates openclaw delivery is broken (sidecar handshake failure,
+# version mismatch between gateway and config, WhatsApp media plugin
+# regression, etc.). When the streak hits the threshold, the daily email
+# escalates from passive digest to alert: 🚨 subject prefix + red banner.
+ANOMALY_STATE_FILE = os.path.expanduser("~/.openclaw/logs/image-digest-anomaly.json")
+ANOMALY_THRESHOLD_DAYS = 3
+
+
+def load_anomaly_state():
+    """Load consecutive-zero-delivery counter state."""
+    if os.path.isfile(ANOMALY_STATE_FILE):
+        try:
+            with open(ANOMALY_STATE_FILE) as f:
+                return json.load(f)
+        except (IOError, json.JSONDecodeError):
+            pass
+    return {"consecutive_zero_delivery_days": 0, "first_anomaly_date": None, "last_run_date": None}
+
+
+def save_anomaly_state(state):
+    os.makedirs(os.path.dirname(ANOMALY_STATE_FILE), exist_ok=True)
+    with open(ANOMALY_STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def update_anomaly_state(target_date_str, ml_total, total_sends):
+    """Update anomaly counter based on today's gen vs delivery counts.
+
+    Rules:
+      - delivered (total_sends > 0): reset counter (delivery is functional)
+      - generated but not delivered (ml_total > 0 and total_sends == 0): increment
+      - neither (ml_total == 0): no change (no signal to evaluate)
+
+    Returns (streak_days, first_anomaly_date) for caller to render banner.
+    """
+    state = load_anomaly_state()
+    if total_sends > 0:
+        state["consecutive_zero_delivery_days"] = 0
+        state["first_anomaly_date"] = None
+    elif ml_total > 0:
+        if state["consecutive_zero_delivery_days"] == 0:
+            state["first_anomaly_date"] = target_date_str
+        state["consecutive_zero_delivery_days"] += 1
+    state["last_run_date"] = target_date_str
+    save_anomaly_state(state)
+    return state["consecutive_zero_delivery_days"], state["first_anomaly_date"]
+
 
 def load_env():
     """Load SMTP credentials from .smtp.env."""
@@ -207,7 +256,8 @@ def classify_deliveries(image_entries, media_log_data):
     return new_entries, resend_entries
 
 
-def build_email(target_date_str, image_entries, media_log_data, total_sends):
+def build_email(target_date_str, image_entries, media_log_data, total_sends,
+                anomaly_streak=0, anomaly_first_date=None):
     """Build multipart MIME email with inline images and cross-check section."""
     # Filter to images that still exist on disk
     valid = []
@@ -247,6 +297,15 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
         <div style="padding:24px;background:#fff8e1;border-radius:10px;color:#7a5d00;font-size:13px;line-height:1.6;text-align:left;">
           📁 今日 <strong>{ml_total_count}</strong> 张图本地生成但未通过 WhatsApp/邮件投递（可能是即时查看后留存于 <code>~/.openclaw/workspace/</code>）。<br>
           以下是 <strong>media-usage.jsonl</strong> 中记录的费用 / 模型 / 分辨率明细，缩略图无法附带（生成事件不携带交付路径）。
+        </div>"""
+
+    anomaly_banner = ""
+    if anomaly_streak >= ANOMALY_THRESHOLD_DAYS:
+        anomaly_banner = f"""
+        <div style="margin:0 24px;padding:14px 18px;background:#ffebee;border:2px solid #c62828;border-radius:10px;color:#b71c1c;font-size:13px;line-height:1.6;">
+          🚨 <strong>openclaw delivery 持续异常 {anomaly_streak} 天</strong>（自 {anomaly_first_date}）— 每天都生成图但 0 投递。<br>
+          可能原因：gateway version mismatch（log 里反复 WARN "newer OpenClaw"）/ sidecar handshake 失败 / WhatsApp media plugin regression。<br>
+          建议排查：<code>openclaw --version</code>, 重启 gateway，或检查 <code>~/.openclaw/openclaw.json</code> 与 runtime 版本是否对齐。
         </div>"""
 
     # --- Cross-check: classify deliveries as new vs re-send ---
@@ -358,6 +417,7 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
     <div style="margin-top:8px;font-size:13px;opacity:.85;">{target_date_str}</div>
   </div>
 
+  {anomaly_banner}
   <div style="padding:20px 24px;">
     <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px;">
       <div style="flex:1;min-width:100px;background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;">
@@ -401,7 +461,8 @@ def build_email(target_date_str, image_entries, media_log_data, total_sends):
         subject_suffix = f"({delivered_n} 投递 · {ml_total_count} 生成)"
     else:
         subject_suffix = f"({delivered_n} 张)"
-    msg["Subject"] = Header(f"🎨 今日图片汇总 - {target_date_str} {subject_suffix}", "utf-8")
+    subject_prefix = "🚨 " if anomaly_streak >= ANOMALY_THRESHOLD_DAYS else ""
+    msg["Subject"] = Header(f"{subject_prefix}🎨 今日图片汇总 - {target_date_str} {subject_suffix}", "utf-8")
 
     html_part = MIMEText(html, "html", "utf-8")
     msg.attach(html_part)
@@ -472,12 +533,21 @@ def main():
     if resend_list:
         print(f"  Re-sent old: {', '.join(os.path.basename(e['url']) for e in resend_list)}")
 
+    # Update anomaly streak (must run BEFORE the no-data short-circuit so a
+    # delivery-recovered day still resets the counter even when ml_total == 0).
+    anomaly_streak, anomaly_first_date = update_anomaly_state(target, ml_total, total_sends)
+    if anomaly_streak >= ANOMALY_THRESHOLD_DAYS:
+        log(f"ANOMALY: {anomaly_streak} consecutive zero-delivery days since {anomaly_first_date}")
+        print(f"⚠️ Anomaly streak: {anomaly_streak} days zero-delivery (since {anomaly_first_date})")
+
     if not entries and ml_total == 0:
         log(f"No images found for {target} (gateway delivered=0, media-usage generated=0)")
         print("No images. Skipping email.")
         return
 
-    result = build_email(target, entries, media_log_data, total_sends)
+    result = build_email(target, entries, media_log_data, total_sends,
+                         anomaly_streak=anomaly_streak,
+                         anomaly_first_date=anomaly_first_date)
     if result is None:
         log(f"No deliverable content for {target}")
         print("No deliverable content. Skipping email.")
